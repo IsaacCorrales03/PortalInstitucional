@@ -3,6 +3,7 @@ from app.db.session import get_db
 from app.db.models import ProfessorAvailability, ProfessorCourse, ProfessorProfile, User, Role, Permission, UserRole, RolePermission, Specialty
 from app.core.security import hash_password
 import secrets, string
+from datetime import time
 
 # =========================
 # COURSES (MATERIAS)
@@ -46,6 +47,7 @@ def create_courses(db: Session):
         created[name] = course
 
     return created
+
 # =========================
 # STUDY PLANS (ACADÉMICOS)
 # =========================
@@ -142,7 +144,6 @@ def generate_password(length: int = 16) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*()"
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-
 # =========================
 #           ROLES
 # =========================
@@ -165,7 +166,6 @@ def create_roles(db: Session):
         created_roles[role_name] = role
 
     return created_roles
-
 
 # =========================
 # SPECIALTIES
@@ -222,7 +222,6 @@ def create_specialties(db: Session):
                 print(f"Especialidad actualizada: {spec['name']}")
             else:
                 print(f"Especialidad ya existe: {spec['name']}")
-from datetime import time
 
 def create_professors(db: Session):
     role = db.query(Role).filter(Role.name == "profesor").first()
@@ -397,8 +396,6 @@ def create_superadmin(db: Session):
         print(f"Rol superadmin asignado a {user.email}")
     else:
         print(f"Usuario superadmin ya existe: {user.email}")
-
-
 
 # =========================
 # MAIN
