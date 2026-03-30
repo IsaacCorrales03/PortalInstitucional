@@ -97,3 +97,6 @@ export async function getMyAttendance(sectionId) {
 export async function getMyGrades(periodId) {
   return apiFetch(`/dashboard/me/grades${periodId ? `?period_id=${periodId}` : ""}`);
 }
+export const getProfessors = () => apiFetch("/admin/professors");
+export const getProfessorsByCourse = (courseId) =>
+  apiFetch(`/admin/professors/by-course/${courseId}`);

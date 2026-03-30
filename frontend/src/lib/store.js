@@ -10,7 +10,6 @@
  *    to re-fetch only that slice from the API.
  *  - Components read from the store — no direct useFetch in views.
  */
-
 import { create } from "zustand";
 import * as api from "./api";
 
@@ -25,6 +24,7 @@ const FETCHERS = {
   events:        api.getEvents,
   announcements: api.getAnnouncements,
   meetings:      api.getMeetings,
+  professors:    api.getProfessors,   // ← agregar esta línea
 };
 
 function emptySlice() {
@@ -42,6 +42,7 @@ export const useStore = create((set, get) => ({
   events:        emptySlice(),
   announcements: emptySlice(),
   meetings:      emptySlice(),
+  professors: emptySlice(),
 
   // ── ensure(key) ───────────────────────────────────────────────
   // Fetches only if the slice has never been loaded (data === null).

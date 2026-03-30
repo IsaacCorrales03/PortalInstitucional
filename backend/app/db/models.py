@@ -203,8 +203,6 @@ class StudentProfile(Base):
     __tablename__ = "student_profiles"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    section_id: Mapped[int | None] = mapped_column(ForeignKey("sections.id"), nullable=True)
-    section_part = mapped_column(String(1), nullable=False)  # "A" o "B"
     student_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     year_level: Mapped[int] = mapped_column(Integer, nullable=False)
     specialty_id: Mapped[int] = mapped_column(
@@ -320,7 +318,7 @@ class SectionCourse(Base):
     course_id = mapped_column(ForeignKey("courses.id"), nullable=False)
 
     professor_id = mapped_column(ForeignKey("users.id"), nullable=False)
-
+    section_part = mapped_column(String(1), nullable=True)
     __table_args__ = (
         UniqueConstraint("section_id", "course_id"), 
     )
@@ -347,6 +345,7 @@ class Enrollment(Base):
     section_id: Mapped[int] = mapped_column(
         ForeignKey("sections.id"), primary_key=True
     )
+    section_part = mapped_column(String(1), nullable=False)
     enrolled_at: Mapped[datetime.date] = mapped_column(
         Date, default=datetime.date.today
     )
@@ -561,4 +560,57 @@ class Event(Base):
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow
+    )
+
+
+class StudyPlan(Base):
+    __tablename__ = "study_plans"
+
+    id = mapped_column(Integer, primary_key=True)
+    name = mapped_column(String(100), nullable=False)
+
+    year_level = mapped_column(Integer, nullable=False)
+    specialty_id = mapped_column(ForeignKey("specialties.id"), nullable=True)
+
+class StudyPlanCourse(Base):
+    __tablename__ = "study_plan_courses"
+
+    id = mapped_column(Integer, primary_key=True)
+    study_plan_id = mapped_column(ForeignKey("study_plans.id"), nullable=False)
+    course_id = mapped_column(ForeignKey("courses.id"), nullable=False)
+
+    part = mapped_column(String(1), nullable=True)  # A / B / NULL
+
+class SectionStudyPlan(Base):
+    __tablename__ = "section_study_plans"
+
+    id = mapped_column(Integer, primary_key=True)
+
+    section_id = mapped_column(ForeignKey("sections.id"), nullable=False)
+    study_plan_id = mapped_column(ForeignKey("study_plans.id"), nullable=False)
+
+    part = mapped_column(String(1), nullable=True)  # A / B / NULL
+
+class ProfessorCourse(Base):
+    __tablename__ = "professor_courses"
+
+    professor_id = mapped_column(ForeignKey("users.id"), primary_key=True)
+    course_id = mapped_column(ForeignKey("courses.id"), primary_key=True)
+
+# =========================
+# PROFESSOR AVAILABILITY
+# =========================
+class ProfessorAvailability(Base):
+    __tablename__ = "professor_availabilities"
+
+    id = mapped_column(Integer, primary_key=True)
+
+    professor_id = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    day_of_week = mapped_column(String(20), nullable=False)  # lunes, martes, etc.
+    start_time = mapped_column(Time, nullable=False)
+    end_time = mapped_column(Time, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("professor_id", "day_of_week", "start_time", "end_time"),
     )

@@ -1,9 +1,10 @@
 import datetime
 import secrets
 import string
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,14 +18,19 @@ from app.db.models import (
     GradeReport,
     GroupMember,
     Permission,
+    ProfessorAvailability,
+    ProfessorCourse,
     ProfessorProfile,
     Role,
     RolePermission,
     Section,
     SectionCourse,
     SectionSpecialty,
+    SectionStudyPlan,
     Specialty,
     StudentProfile,
+    StudyPlan,
+    StudyPlanCourse,
     Submission,
     User,
     UserRole,
@@ -84,6 +90,76 @@ def list_users(
             "is_active": u.is_active,
             "role": role[0] if role else None,
         })
+    return result
+
+@router.get("/professors/by-course/{course_id}")
+def list_professors_by_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_users", db)
+
+    professors = (
+        db.query(User)
+        .join(UserRole, UserRole.user_id == User.id)
+        .join(Role, Role.id == UserRole.role_id)
+        .join(ProfessorCourse, ProfessorCourse.professor_id == User.id)
+        .filter(
+            Role.name == "profesor",
+            ProfessorCourse.course_id == course_id
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": p.id,
+            "full_name": p.full_name,
+            "email": p.email,
+        }
+        for p in professors
+    ]
+
+@router.get("/professors")
+def list_professors(
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_users", db)
+
+    professors = (
+        db.query(User)
+        .join(UserRole)
+        .join(Role)
+        .filter(Role.name == "profesor")
+        .all()
+    )
+
+    result = []
+
+    for p in professors:
+        courses = (
+            db.query(Course)
+            .join(ProfessorCourse, ProfessorCourse.course_id == Course.id)
+            .filter(ProfessorCourse.professor_id == p.id)
+            .all()
+        )
+
+        result.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "email": p.email,
+            "is_active": p.is_active,
+            "courses": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                }
+                for c in courses
+            ],
+        })
+
     return result
 
 
@@ -185,6 +261,173 @@ def create_user(
 
     return {"id": user.id, "email": user.email, "role": role.name, "password": password}
 
+
+class AvailabilityCreateSchema(BaseModel):
+    day_of_week: Literal[
+        "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"
+    ]
+    start_time: datetime.time
+    end_time: datetime.time
+
+    @field_validator("end_time")
+    def validate_time_range(cls, v, values):
+        start = values.data.get("start_time")
+        if start and v <= start:
+            raise ValueError("end_time debe ser mayor que start_time")
+        return v
+class AvailabilityBulkCreateSchema(BaseModel):
+    availabilities: list[AvailabilityCreateSchema]   
+
+class AvailabilityResponseSchema(BaseModel):
+    id: int
+    day_of_week: str
+    start_time: datetime.time
+    end_time: datetime.time
+
+    class Config:
+        from_attributes = True
+class AvailabilityUpdateSchema(BaseModel):
+    day_of_week: str | None = None
+    start_time: datetime.time | None = None
+    end_time: datetime.time | None = None
+
+class ProfessorCourseAssignSchema(BaseModel):
+    course_ids: list[int]
+class ProfessorCourseResponse(BaseModel):
+    professor_id: int
+    course_id: int
+
+    class Config:
+        from_attributes = True  
+        
+@router.post("/professors/{professor_id}/courses")
+def assign_courses_to_professor(
+    professor_id: int,
+    data: ProfessorCourseAssignSchema,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_users", db)
+
+    # validar profesor
+    professor = (
+        db.query(User)
+        .join(UserRole).join(Role)
+        .filter(User.id == professor_id, Role.name == "profesor")
+        .first()
+    )
+
+    if not professor:
+        raise HTTPException(404, "Profesor no existe")
+
+    if not data.course_ids:
+        raise HTTPException(400, "Debe enviar al menos un course_id")
+
+    # validar cursos existentes
+    courses = db.query(Course).filter(Course.id.in_(data.course_ids)).all()
+
+    if len(courses) != len(set(data.course_ids)):
+        raise HTTPException(404, "Uno o más cursos no existen")
+
+    created = []
+
+    for course in courses:
+        exists = db.query(ProfessorCourse).filter(
+            ProfessorCourse.professor_id == professor_id,
+            ProfessorCourse.course_id == course.id
+        ).first()
+
+        if not exists:
+            pc = ProfessorCourse(
+                professor_id=professor_id,
+                course_id=course.id
+            )
+            db.add(pc)
+            created.append(pc)
+
+    db.commit()
+
+    return {
+        "assigned": len(created),
+        "total_requested": len(data.course_ids)
+    }  
+
+@router.post("/professors/{professor_id}/availability")
+def add_availability(
+    professor_id: int,
+    data: AvailabilityCreateSchema,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_users", db)
+
+    # validar profesor
+    professor = (
+        db.query(User)
+        .join(UserRole).join(Role)
+        .filter(User.id == professor_id, Role.name == "profesor")
+        .first()
+    )
+
+    if not professor:
+        raise HTTPException(404, "Profesor no existe")
+
+    # validar rango
+    if data.start_time >= data.end_time:
+        raise HTTPException(400, "Rango inválido")
+
+    # validar solapamiento
+    overlap = db.query(ProfessorAvailability).filter(
+        ProfessorAvailability.professor_id == professor_id,
+        ProfessorAvailability.day_of_week == data.day_of_week,
+        ~(
+            (data.end_time <= ProfessorAvailability.start_time) |
+            (data.start_time >= ProfessorAvailability.end_time)
+        )
+    ).first()
+
+    if overlap:
+        raise HTTPException(400, "Horario solapado")
+
+    db.add(ProfessorAvailability(
+        professor_id=professor_id,
+        day_of_week=data.day_of_week,
+        start_time=data.start_time,
+        end_time=data.end_time
+    ))
+
+    db.commit()
+
+    return {"ok": True}
+
+
+@router.get("/professors/{professor_id}/courses")
+def get_professor_courses(
+    professor_id: int,
+    db: Session = Depends(get_db),
+):
+    return db.query(ProfessorCourse).filter(
+        ProfessorCourse.professor_id == professor_id
+    ).all()
+
+@router.delete("/professors/{professor_id}/courses/{course_id}")
+def remove_professor_course(
+    professor_id: int,
+    course_id: int,
+    db: Session = Depends(get_db),
+):
+    pc = db.query(ProfessorCourse).filter(
+        ProfessorCourse.professor_id == professor_id,
+        ProfessorCourse.course_id == course_id
+    ).first()
+
+    if not pc:
+        raise HTTPException(404, "Asignación no existe")
+
+    db.delete(pc)
+    db.commit()
+
+    return {"ok": True}
 
 @router.put("/users/{user_id}")
 def edit_user(
@@ -394,12 +637,22 @@ def delete_course(
 # ══════════════════════════════════════════════
 # SECCIONES
 # ══════════════════════════════════════════════
+class CourseAssignmentSchema(BaseModel):
+    course_id: int
+    professor_id: int
+
+
 class SectionCreateSchema(BaseModel):
     name: str
     academic_year: str
+    year_level: int
+
     specialty_id_a: int
     specialty_id_b: int
+
     guide_professor_id: int | None = None
+
+    course_assignments: list[CourseAssignmentSchema]
 
 class SectionUpdateSchema(BaseModel):
     name: str | None = None
@@ -482,17 +735,17 @@ def create_section(
 ):
     check_permission(current_user, "manage_sections", db)
 
-    # Validar especialidades
+    # ───── VALIDAR ESPECIALIDADES ─────
     specialty_a = db.query(Specialty).filter(Specialty.id == data.specialty_id_a).first()
     specialty_b = db.query(Specialty).filter(Specialty.id == data.specialty_id_b).first()
 
     if not specialty_a or not specialty_b:
-        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+        raise HTTPException(404, "Especialidad no encontrada")
 
     if data.specialty_id_a == data.specialty_id_b:
-        raise HTTPException(status_code=400, detail="A y B no pueden ser iguales")
+        raise HTTPException(400, "A y B no pueden ser iguales")
 
-    # Validar profesor guía
+    # ───── VALIDAR PROFESOR GUÍA ─────
     if data.guide_professor_id:
         professor = (
             db.query(User).join(UserRole).join(Role)
@@ -500,18 +753,37 @@ def create_section(
             .first()
         )
         if not professor:
-            raise HTTPException(status_code=400, detail="Profesor guía no válido")
+            raise HTTPException(400, "Profesor guía no válido")
 
-    # Crear sección (sin specialty_id)
+    # ───── OBTENER PLAN ACADÉMICO ─────
+    academic_plan = db.query(StudyPlan).filter(
+        StudyPlan.year_level == data.year_level,
+        StudyPlan.specialty_id.is_(None)
+    ).first()
+
+    if not academic_plan:
+        raise HTTPException(
+            400,
+            f"No existe plan académico para el año {data.year_level}"
+        )
+
+    # ───── CREAR SECCIÓN ─────
     section = Section(
         name=data.name,
         academic_year=data.academic_year,
         guide_professor_id=data.guide_professor_id,
     )
     db.add(section)
-    db.flush()  # importante para obtener section.id
+    db.flush()  # ya tenemos section.id
 
-    # Crear relación A/B
+    # ───── ASIGNAR PLAN ─────
+    db.add(SectionStudyPlan(
+        section_id=section.id,
+        study_plan_id=academic_plan.id,
+        part=None
+    ))
+
+    # ───── RELACIÓN A/B ─────
     db.add_all([
         SectionSpecialty(
             section_id=section.id,
@@ -525,6 +797,43 @@ def create_section(
         )
     ])
 
+    # ───── ASIGNAR PROFESORES A MATERIAS ─────
+    # data.course_assignments = [{course_id, professor_id}]
+    if not data.course_assignments:
+        raise HTTPException(400, "Debe asignar profesores a las materias")
+
+    # obtener materias del plan
+    plan_courses = db.query(StudyPlanCourse).filter(
+        StudyPlanCourse.study_plan_id == academic_plan.id
+    ).all()
+
+    plan_course_ids = {pc.course_id for pc in plan_courses}
+    assigned_course_ids = {c.course_id for c in data.course_assignments}
+
+    # validar que cubre todo el plan
+    if plan_course_ids != assigned_course_ids:
+        raise HTTPException(
+            400,
+            "Debe asignar exactamente todas las materias del plan"
+        )
+
+    for item in data.course_assignments:
+        # validar profesor
+        professor = (
+            db.query(User).join(UserRole).join(Role)
+            .filter(User.id == item.professor_id, Role.name == "profesor")
+            .first()
+        )
+
+        if not professor:
+            raise HTTPException(400, f"Profesor inválido para curso {item.course_id}")
+
+        db.add(SectionCourse(
+            section_id=section.id,
+            course_id=item.course_id,
+            professor_id=item.professor_id
+        ))
+
     db.commit()
     db.refresh(section)
 
@@ -533,7 +842,6 @@ def create_section(
         "name": section.name,
         "academic_year": section.academic_year,
     }
-
 
 @router.put("/sections/{section_id}")
 def update_section(
