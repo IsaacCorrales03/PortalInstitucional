@@ -23,7 +23,7 @@ ALLOWED_ORIGINS = [origin.strip() for origin in origins.split(",") if origin.str
 # =========================
 
 app = FastAPI(
-    title="Portal Institucional API",
+    title="Portal Institucional APIA",
     version="1.0.0",
     debug=DEBUG
 )
