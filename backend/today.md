@@ -4,19 +4,19 @@ grupos by chat
 eso por ahora
 profesor: pRa1NpuhwNJ0
 estudiante: OsziBKaSlIDH
-martha@portal.com | E0eEbO4jNrvbZEc#
-marvin@portal.com | 52iZtb*#w%OGTNyQ
-josefa@portal.com | YuPmJfD$nBdWz#N7
-zugey@portal.com | $g&GP2MKO7H36N1r
-elke@portal.com | 3p3mZNGNrhcTGTqp
-gaby@portal.com | y9Y1is#Yi5G3KX8E
-diego@portal.com | 6dOC85(b!$yWab%@
-raul@portal.com | uH#eQ^mcxa9P@7e#
-natalia@portal.com | LNCnJR1HseavNawV
-thelma@portal.com | qD3phgFbqA2#^*2#
-alberto@portal.com | Ok9Fn12g9%8JaDP^
-magaly@portal.com | 3hXACapRd^C4agnb
-elizabet@portal.com | I!6uvSPM%$Lp^9Vb
-yendry@portal.com | ftt8x$xa22^MW34F
-alejandro@portal.com | n$fSMK@So%YfSwui
-heidy@portal.com | 2xaBM4pYdms#78VA
+martha@portal.com | WLKF^(pRYf$&gFDe
+marvin@portal.com | E@I6oZtiqzAgA#0J
+josefa@portal.com | lmZ6ncP)*TYp@$tQ
+zugey@portal.com | !aICpYu8swNxjBHF
+elke@portal.com | dDBXPT@)nfRoSzpL
+gaby@portal.com | XwasO8)KlluLknNd
+diego@portal.com | xi1^67rLbS&weNQR
+raul@portal.com | 31Eu72Ir9EV2!wtC
+natalia@portal.com | h^PbH*IdGZig(eq6
+thelma@portal.com | rr1DIACmz$DpwS9)
+alberto@portal.com | ^nBBRE^GUmu#^H2y
+magaly@portal.com | 2ZM5pJt%2K%4^Yrk
+elizabet@portal.com | OVHHa*S)O!ZDyk8N
+yendry@portal.com | &WDYup9A4)tIDbHi
+alejandro@portal.com | gBa34W6tTOo0ue0@
+heidy@portal.com | F0j*Zc8Mi51TqfS#

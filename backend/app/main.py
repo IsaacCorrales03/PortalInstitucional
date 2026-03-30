@@ -1,7 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
+
+from app.api.routes import admin, auth, specialities, dashboard, courses
+from app.db.session import get_db
 
 # =========================
 # Cargar variables de entorno
@@ -27,11 +31,6 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG
 )
-from app.api.routes import auth
-from app.api.routes import admin
-from app.api.routes import specialities
-from app.api.routes import dashboard
-from app.api.routes import courses
 
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -53,24 +52,13 @@ app.add_middleware(
 # =========================
 # Endpoint de salud
 # =========================
-@app.get("/health", tags=["Health"])
+@app.get("/", tags=["Health"])
 def health_check():
     return {
         "status": "ok",
         "message": "el servicio está en linea",
         "environment": ENV
     }
-
-# =========================
-# Root opcional
-# =========================
-@app.get("/")
-def root():
-    return {"message": "API Portal Institucional activa"}
-
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from app.db.session import get_db
 
 @app.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
