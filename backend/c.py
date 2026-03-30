@@ -4,13 +4,6 @@ from app.db.models import ProfessorAvailability, ProfessorCourse, ProfessorProfi
 from app.core.security import hash_password
 import secrets, string
 
-
-from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.db.models import User, Role, Permission, UserRole, RolePermission, Specialty
-from app.core.security import hash_password
-import secrets, string
-
 # =========================
 # COURSES (MATERIAS)
 # =========================
@@ -39,7 +32,10 @@ def create_courses(db: Session):
         course = db.query(Course).filter(Course.name == name).first()
 
         if not course:
-            course = Course(name=name)
+            if name == "Guía":
+                course = Course(name=name, is_guide=True)
+            else:
+                course = Course(name=name)
             db.add(course)
             db.commit()
             db.refresh(course)

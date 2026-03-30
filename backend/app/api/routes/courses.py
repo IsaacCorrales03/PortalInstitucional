@@ -18,14 +18,14 @@ class CourseCreateSchema(BaseModel):
     description: str | None = None
     specialty_id: int | None = None
     year_level: int | None = None
-
+    is_guide: bool = False           
 
 class CourseUpdateSchema(BaseModel):
     name: str | None = None
     description: str | None = None
     specialty_id: int | None = None
     year_level: int | None = None
-
+    is_guide: bool | None = None   
 
 # =======================
 # PUBLIC

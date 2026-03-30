@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import check_permission, get_current_user
+from app.api.routes.courses import CourseCreateSchema, CourseUpdateSchema
 from app.core.security import hash_password
 from app.db.models import (
     AdministrativeProfile,
@@ -494,22 +495,6 @@ def delete_user(
     return {"detail": f"Usuario {user.email} eliminado"}
 
 
-# ══════════════════════════════════════════════
-# CURSOS
-# ══════════════════════════════════════════════
-
-class CourseCreateSchema(BaseModel):
-    name: str
-    description: str | None = None
-    specialty_id: int | None = None
-    year_level: int | None = None
-
-
-class CourseUpdateSchema(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    specialty_id: int | None = None
-    year_level: int | None = None
 
 
 @router.get("/courses")
@@ -526,6 +511,7 @@ def list_courses(
             "description": c.description,
             "specialty_id": c.specialty_id,
             "year_level": c.year_level,
+            "is_guide": c.is_guide
         }
         for c in courses
     ]
@@ -547,6 +533,7 @@ def get_course(
         "description": course.description,
         "specialty_id": course.specialty_id,
         "year_level": course.year_level,
+        "is_guide": course.is_guide,
     }
 
 
@@ -567,6 +554,8 @@ def create_course(
         description=data.description,
         specialty_id=data.specialty_id,
         year_level=data.year_level,
+        is_guide=data.is_guide
+        
     )
     db.add(course)
     db.commit()
@@ -642,17 +631,22 @@ class CourseAssignmentSchema(BaseModel):
     professor_id: int
 
 
+from pydantic import field_validator
+
 class SectionCreateSchema(BaseModel):
     name: str
-    academic_year: str
+    academic_year: int | str  
     year_level: int
 
     specialty_id_a: int
     specialty_id_b: int
-
     guide_professor_id: int | None = None
-
     course_assignments: list[CourseAssignmentSchema]
+
+    @field_validator("academic_year", mode="before")
+    @classmethod
+    def coerce_academic_year(cls, v):
+        return str(v)                 # siempre guarda como string
 
 class SectionUpdateSchema(BaseModel):
     name: str | None = None
@@ -1254,3 +1248,42 @@ def get_user_permissions(
         .all()
     )
     return [{"code": p.code, "description": p.description} for p in permissions]
+
+@router.get("/study-plans/by-year-level/{year_level}")
+def get_study_plan_by_year_level(
+    year_level: int,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_sections", db)
+
+    plan = db.query(StudyPlan).filter(
+        StudyPlan.year_level == year_level,
+        StudyPlan.specialty_id.is_(None)
+    ).first()
+
+    if not plan:
+        raise HTTPException(
+            404,
+            f"No existe plan académico para el nivel {year_level}"
+        )
+
+    courses = (
+        db.query(Course)
+        .join(StudyPlanCourse, StudyPlanCourse.course_id == Course.id)
+        .filter(StudyPlanCourse.study_plan_id == plan.id)
+        .all()
+    )
+
+    return {
+        "study_plan_id": plan.id,
+        "year_level": plan.year_level,
+        "courses": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "is_guide": getattr(c, "is_guide", False),   # si tienes ese campo
+            }
+            for c in courses
+        ],
+    }
