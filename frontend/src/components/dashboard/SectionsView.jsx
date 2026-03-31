@@ -4,113 +4,6 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import * as api from "@/lib/api";
 
-/* ─── CSS MODAL ENHANCEMENTS ──────────────────────────────────────────────────
-   Añadí estas clases. Pegalas en tu globals.css o en el <style> global.
-
-  .db-modal-backdrop {
-    position: fixed; inset: 0; z-index: 50;
-    background: rgba(0,0,0,.55);
-    backdrop-filter: blur(6px);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-    animation: backdropIn .18s ease;
-  }
-  @keyframes backdropIn { from { opacity: 0 } to { opacity: 1 } }
-
-  .db-modal {
-    background: var(--bg-surface, #18191f);
-    border: 1px solid var(--border-light, rgba(255,255,255,.08));
-    border-radius: 16px;
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,.04) inset,
-      0 24px 64px rgba(0,0,0,.55),
-      0 8px 24px rgba(0,0,0,.35);
-    width: 100%; max-width: 540px;
-    max-height: 88vh; overflow: hidden;
-    display: flex; flex-direction: column;
-    animation: modalIn .22s cubic-bezier(.22,1,.36,1);
-  }
-  @keyframes modalIn {
-    from { opacity: 0; transform: translateY(14px) scale(.97) }
-    to   { opacity: 1; transform: translateY(0)    scale(1)   }
-  }
-
-  .db-modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 22px 16px;
-    border-bottom: 1px solid var(--border, rgba(255,255,255,.07));
-    flex-shrink: 0;
-  }
-  .db-modal-title {
-    font-size: 15px; font-weight: 700;
-    letter-spacing: -.015em;
-    color: var(--text, #f0f0f0);
-  }
-  .db-modal-close {
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    border: 1px solid var(--border-light, rgba(255,255,255,.08));
-    background: transparent;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; color: var(--text-muted, #888);
-    transition: background .15s, color .15s;
-  }
-  .db-modal-close:hover {
-    background: var(--bg-hover, rgba(255,255,255,.06));
-    color: var(--text, #f0f0f0);
-  }
-  .db-modal-close svg { width: 13px; height: 13px; }
-
-  .db-modal-body {
-    padding: 20px 22px 22px;
-    overflow-y: auto;
-    display: flex; flex-direction: column; gap: 10px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border, rgba(255,255,255,.1)) transparent;
-  }
-
-  .db-field { display: flex; flex-direction: column; gap: 5px; }
-  .db-field-label {
-    font-size: 10px; font-weight: 700;
-    letter-spacing: .1em; text-transform: uppercase;
-    color: var(--text-subtle, #666);
-  }
-
-  .db-input {
-    width: 100%; padding: 9px 12px;
-    background: var(--bg-elevated, #1e1f27);
-    border: 1px solid var(--border, rgba(255,255,255,.09));
-    border-radius: 9px;
-    color: var(--text, #f0f0f0);
-    font-size: 13px; font-family: inherit;
-    transition: border-color .15s, box-shadow .15s;
-    outline: none;
-  }
-  .db-input:focus {
-    border-color: var(--accent, #6382ff);
-    box-shadow: 0 0 0 3px rgba(99,130,255,.15);
-  }
-  .db-input::placeholder { color: var(--text-subtle, #555); }
-
-  .db-assignment-row {
-    display: flex; align-items: center; gap: 6px;
-    padding: 8px 12px;
-    background: var(--bg-elevated, #1e1f27);
-    border: 1px solid var(--border, rgba(255,255,255,.07));
-    border-radius: 9px;
-    font-size: 12px; color: var(--text-muted, #999);
-    animation: rowIn .15s ease;
-  }
-  @keyframes rowIn { from { opacity:0; transform:translateX(-6px) } to { opacity:1; transform:translateX(0) } }
-  .db-assignment-row strong { color: var(--text, #f0f0f0); font-weight: 600; }
-  .db-assignment-arrow { color: var(--accent, #6382ff); font-weight: 700; margin: 0 2px; }
-
-  .db-modal-actions {
-    display: flex; justify-content: flex-end; gap: 8px;
-    padding-top: 6px;
-  }
-─────────────────────────────────────────────────────────────────────────── */
-
 function Divider({ label }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
@@ -132,17 +25,17 @@ const EMPTY_FORM = {
   academic_year: new Date().getFullYear(),
   year_level: "",
   guide_professor_id: "",
-  specialty_id_a: "",   // guardamos el ID internamente
+  specialty_id_a: "",
   specialty_id_b: "",
   course_assignments: [],
 };
 
 export default function SectionsView() {
-  const { sections, users, courses, specialties, professors, ensure, reload } = useStore();
+  const { sections, specialties, professors, ensure, reload } = useStore();
 
-  const [open, setOpen]   = useState(false);
-  const [form, setForm]   = useState(EMPTY_FORM);
-  const [error, setError] = useState("");
+  const [open, setOpen]     = useState(false);
+  const [form, setForm]     = useState(EMPTY_FORM);
+  const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
   const [assignmentDraft, setAssignmentDraft] = useState({
@@ -150,18 +43,58 @@ export default function SectionsView() {
     professor_id: "",
   });
 
-  // Profesores disponibles para la materia elegida — cargados desde el backend
+  // ── Plan de estudios según year_level ──────────────────────────
+  const [planCourses, setPlanCourses]     = useState([]);
+  const [planLoading, setPlanLoading]     = useState(false);
+  const [planError, setPlanError]         = useState("");
+
+  // ── Profesores disponibles para la materia del draft ───────────
   const [courseProfessors, setCourseProfessors]               = useState([]);
   const [courseProfessorsLoading, setCourseProfessorsLoading] = useState(false);
 
   useEffect(() => {
     ensure("sections");
-    ensure("courses");
     ensure("specialties");
-    ensure("professors");           // para el select de profesor guía
+    ensure("professors");
   }, [ensure]);
 
-  // Cuando cambia la materia del draft, traer profesores desde /admin/professors/by-course/:id
+  // Cuando cambia year_level → cargar materias del plan
+  useEffect(() => {
+    if (!form.year_level) {
+      setPlanCourses([]);
+      setPlanError("");
+      // Limpiar asignaciones al cambiar de nivel
+      setForm(f => ({ ...f, course_assignments: [] }));
+      setAssignmentDraft({ course_id: "", professor_id: "" });
+      return;
+    }
+
+    let cancelled = false;
+    setPlanLoading(true);
+    setPlanError("");
+
+    api.getStudyPlanByYearLevel(form.year_level)
+      .then(data => {
+        if (!cancelled) {
+          setPlanCourses(data.courses ?? []);
+          // Limpiar asignaciones previas porque el plan cambió
+          setForm(f => ({ ...f, course_assignments: [] }));
+          setAssignmentDraft({ course_id: "", professor_id: "" });
+        }
+      })
+      .catch(e => {
+        if (!cancelled) {
+          setPlanCourses([]);
+          setPlanError(e.message || "No se encontró plan para este nivel.");
+        }
+      })
+      .finally(() => { if (!cancelled) setPlanLoading(false); });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.year_level]);
+
+  // Cuando cambia la materia del draft → cargar profesores
   useEffect(() => {
     if (!assignmentDraft.course_id) {
       setCourseProfessors([]);
@@ -176,24 +109,55 @@ export default function SectionsView() {
     return () => { cancelled = true; };
   }, [assignmentDraft.course_id]);
 
-  // ─── Listas derivadas ────────────────────────────────────────────
-  const professorsList = professors?.data ?? [];   // solo para el select de profesor guía
+  // ── Listas derivadas ───────────────────────────────────────────
+  const professorsList = professors?.data ?? [];
   const specialtyList  = specialties?.data ?? [];
 
-  // ─── Validación ─────────────────────────────────────────────────
+  // Materia guía del plan actual (is_guide === true)
+  const guideCourse = planCourses.find(c => c.is_guide) ?? null;
+
+  // ── Cambio de profesor guía → auto-asignar materia guía ───────
+  const handleGuideProfessorChange = (e) => {
+    const profId = e.target.value;
+
+    setForm(f => {
+      // Si no hay materia guía en el plan o no se eligió profesor, solo actualizar el campo
+      if (!guideCourse || !profId) {
+        // Si se deselecciona el profesor, quitar la asignación de materia guía
+        const withoutGuide = guideCourse
+          ? f.course_assignments.filter(a => a.course_id !== guideCourse.id)
+          : f.course_assignments;
+        return { ...f, guide_professor_id: profId, course_assignments: withoutGuide };
+      }
+
+      // Remover asignación previa de la materia guía (si existía) y agregar la nueva
+      const withoutGuide = f.course_assignments.filter(a => a.course_id !== guideCourse.id);
+      return {
+        ...f,
+        guide_professor_id: profId,
+        course_assignments: [
+          ...withoutGuide,
+          { course_id: guideCourse.id, professor_id: Number(profId) },
+        ],
+      };
+    });
+  };
+
+  // ── Validación ─────────────────────────────────────────────────
   function validate() {
-    if (!form.name.trim())               return "Nombre requerido.";
-    if (!form.year_level)                return "Nivel requerido.";
+    if (!form.name.trim())          return "Nombre requerido.";
+    if (!form.year_level)           return "Nivel requerido.";
+    if (planError)                  return "No hay plan académico válido para este nivel.";
     if (!form.specialty_id_a || !form.specialty_id_b)
-                                         return "Especialidades A y B requeridas.";
+                                    return "Especialidades A y B requeridas.";
     if (form.specialty_id_a === form.specialty_id_b)
-                                         return "A y B no pueden ser iguales.";
+                                    return "A y B no pueden ser iguales.";
     if (form.course_assignments.length === 0)
-                                         return "Asignar al menos una materia.";
+                                    return "Asignar al menos una materia.";
     return null;
   }
 
-  // ─── Submit ──────────────────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────
   const handleCreate = async () => {
     const err = validate();
     if (err) return setError(err);
@@ -204,7 +168,7 @@ export default function SectionsView() {
     try {
       const payload = {
         ...form,
-        academic_year:      Number(form.academic_year),
+        academic_year:      String(form.academic_year),   // siempre string al backend
         year_level:         Number(form.year_level),
         specialty_id_a:     Number(form.specialty_id_a),
         specialty_id_b:     Number(form.specialty_id_b),
@@ -216,6 +180,7 @@ export default function SectionsView() {
       await api.createSection(payload);
       setOpen(false);
       setForm(EMPTY_FORM);
+      setPlanCourses([]);
       reload("sections");
     } catch (e) {
       setError(e.message || "Error");
@@ -224,14 +189,9 @@ export default function SectionsView() {
     }
   };
 
-  // ─── Helpers ─────────────────────────────────────────────────────
+  // ── Helpers asignaciones ───────────────────────────────────────
   const addAssignment = () => {
     if (!assignmentDraft.course_id || !assignmentDraft.professor_id) return;
-
-    // Evitar duplicado de materia
-    if (form.course_assignments.some(a => a.course_id === Number(assignmentDraft.course_id))) {
-      return setError("Esa materia ya fue asignada.");
-    }
 
     setForm(f => ({
       ...f,
@@ -247,13 +207,32 @@ export default function SectionsView() {
     setError("");
   };
 
-  const removeAssignment = (idx) =>
-    setForm(f => ({
-      ...f,
-      course_assignments: f.course_assignments.filter((_, i) => i !== idx),
-    }));
+  const removeAssignment = (idx) => {
+    const removed = form.course_assignments[idx];
 
-  // ────────────────────────────────────────────────────────────────
+    // Si se elimina la materia guía, también limpiar el profesor guía del form
+    if (guideCourse && removed.course_id === guideCourse.id) {
+      setForm(f => ({
+        ...f,
+        guide_professor_id: "",
+        course_assignments: f.course_assignments.filter((_, i) => i !== idx),
+      }));
+    } else {
+      setForm(f => ({
+        ...f,
+        course_assignments: f.course_assignments.filter((_, i) => i !== idx),
+      }));
+    }
+  };
+
+  // Materias del plan que aún no tienen profesor asignado
+  // La materia guía se excluye porque se asigna automáticamente
+  const availablePlanCourses = planCourses.filter(c =>
+    !c.is_guide &&
+    !form.course_assignments.some(a => a.course_id === c.id)
+  );
+
+  // ──────────────────────────────────────────────────────────────
   return (
     <div className="db-view">
 
@@ -360,14 +339,41 @@ export default function SectionsView() {
                 </div>
               </div>
 
+              {/* Aviso plan no encontrado */}
+              {form.year_level && planError && (
+                <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
+                  {planError}
+                </div>
+              )}
+
+              {/* Aviso cargando plan */}
+              {planLoading && (
+                <div style={{ fontSize: 12, color: "var(--text-subtle)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="db-spinner" style={{ width: 11, height: 11 }} />
+                  Cargando plan de estudios...
+                </div>
+              )}
+
               {/* ── Profesor guía ── */}
               <Divider label="Profesor guía" />
               <div className="db-field">
-                <label className="db-field-label">Profesor guía (opcional)</label>
+                <label className="db-field-label">
+                  Profesor guía
+                  {guideCourse && (
+                    <span style={{
+                      marginLeft: 6, fontSize: 10, fontWeight: 600,
+                      color: "var(--accent)", background: "var(--accent-soft)",
+                      padding: "1px 6px", borderRadius: 4,
+                    }}>
+                      asignará «{guideCourse.name}» automáticamente
+                    </span>
+                  )}
+                </label>
                 <select
                   className="db-input"
                   value={form.guide_professor_id}
-                  onChange={e => setForm({ ...form, guide_professor_id: e.target.value })}
+                  onChange={handleGuideProfessorChange}
+                  disabled={!form.year_level || planLoading}
                 >
                   <option value="">— Sin asignar —</option>
                   {professorsList.map(p => (
@@ -376,7 +382,7 @@ export default function SectionsView() {
                 </select>
               </div>
 
-              {/* ── Especialidades por NOMBRE → ID interno ── */}
+              {/* ── Especialidades ── */}
               <Divider label="Especialidades" />
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -445,74 +451,99 @@ export default function SectionsView() {
                 </div>
               )}
 
-              {/* ── Asignación de materias ── */}
+              {/* ── Materias y profesores ── */}
               <Divider label="Materias y profesores" />
 
-              <div style={{ display: "flex", gap: 8 }}>
-                {/* Selector de materia */}
-                <select
-                  className="db-input"
-                  value={assignmentDraft.course_id}
-                  onChange={e => {
-                    // Al cambiar materia, resetear el profesor para forzar re-selección
-                    setAssignmentDraft({ course_id: e.target.value, professor_id: "" });
-                  }}
-                >
-                  <option value="">— Materia —</option>
-                  {(courses.data ?? []).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-
-                {/* Selector de profesor — viene de /admin/professors/by-course/:id */}
-                <select
-                  className="db-input"
-                  value={assignmentDraft.professor_id}
-                  onChange={e =>
-                    setAssignmentDraft({ ...assignmentDraft, professor_id: e.target.value })
-                  }
-                  disabled={!assignmentDraft.course_id || courseProfessorsLoading}
-                >
-                  <option value="">
-                    {!assignmentDraft.course_id
-                      ? "— Elige materia primero —"
-                      : courseProfessorsLoading
-                        ? "Cargando..."
-                        : courseProfessors.length === 0
-                          ? "Sin profesores disponibles"
-                          : "— Profesor —"}
-                  </option>
-                  {courseProfessors.map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name}</option>
-                  ))}
-                </select>
-
-                <button
-                  className="db-btn db-btn--primary"
-                  onClick={addAssignment}
-                  disabled={!assignmentDraft.course_id || !assignmentDraft.professor_id}
-                  style={{ flexShrink: 0, padding: "0 14px" }}
-                >
-                  +
-                </button>
-              </div>
-
-              {/* Aviso cuando no hay profesores para la materia */}
-              {assignmentDraft.course_id && !courseProfessorsLoading && courseProfessors.length === 0 && (
-                <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
-                  Ningún profesor tiene asignada esa materia en su perfil.
+              {/* Bloquear sección si no hay plan cargado */}
+              {!form.year_level || planError ? (
+                <div style={{ fontSize: 12, color: "var(--text-subtle)", textAlign: "center", padding: "8px 0" }}>
+                  Selecciona un nivel para ver las materias del plan.
                 </div>
+              ) : planLoading ? null : (
+                <>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {/* Selector de materia — solo las del plan, no guía, no asignadas */}
+                    <select
+                      className="db-input"
+                      value={assignmentDraft.course_id}
+                      onChange={e =>
+                        setAssignmentDraft({ course_id: e.target.value, professor_id: "" })
+                      }
+                      disabled={availablePlanCourses.length === 0}
+                    >
+                      <option value="">
+                        {availablePlanCourses.length === 0
+                          ? "— Todas asignadas —"
+                          : "— Materia —"}
+                      </option>
+                      {availablePlanCourses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+
+                    {/* Selector de profesor */}
+                    <select
+                      className="db-input"
+                      value={assignmentDraft.professor_id}
+                      onChange={e =>
+                        setAssignmentDraft({ ...assignmentDraft, professor_id: e.target.value })
+                      }
+                      disabled={!assignmentDraft.course_id || courseProfessorsLoading}
+                    >
+                      <option value="">
+                        {!assignmentDraft.course_id
+                          ? "— Elige materia primero —"
+                          : courseProfessorsLoading
+                            ? "Cargando..."
+                            : courseProfessors.length === 0
+                              ? "Sin profesores disponibles"
+                              : "— Profesor —"}
+                      </option>
+                      {courseProfessors.map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      className="db-btn db-btn--primary"
+                      onClick={addAssignment}
+                      disabled={!assignmentDraft.course_id || !assignmentDraft.professor_id}
+                      style={{ flexShrink: 0, padding: "0 14px" }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Aviso sin profesores para la materia */}
+                  {assignmentDraft.course_id && !courseProfessorsLoading && courseProfessors.length === 0 && (
+                    <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
+                      Ningún profesor tiene asignada esa materia en su perfil.
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Lista de asignaciones */}
               {form.course_assignments.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {form.course_assignments.map((a, i) => {
-                    const c = courses.data?.find(x => x.id === a.course_id);
-                    const p = (professors?.data ?? []).find(x => x.id === a.professor_id);
+                    const c = planCourses.find(x => x.id === a.course_id);
+                    const p = professorsList.find(x => x.id === a.professor_id);
+                    const isGuide = guideCourse?.id === a.course_id;
                     return (
                       <div key={i} className="db-assignment-row">
-                        <strong>{c?.name ?? `Materia ${a.course_id}`}</strong>
+                        <strong style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          {c?.name ?? `Materia ${a.course_id}`}
+                          {isGuide && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: ".06em",
+                              color: "var(--accent)", background: "var(--accent-soft)",
+                              padding: "1px 5px", borderRadius: 4, textTransform: "uppercase",
+                            }}>
+                              guía
+                            </span>
+                          )}
+                        </strong>
                         <span className="db-assignment-arrow">→</span>
                         <span style={{ flex: 1 }}>{p?.full_name ?? `Profesor ${a.professor_id}`}</span>
                         <button
