@@ -44,10 +44,10 @@ class UserCreateAdmin(BaseModel):
 
 class StudentProfileCreate(BaseModel):
     year_level: int
-    specialty_id: int
-    section_id: int
-    section_part: str
     section_shift: str
+    section_id: int
+    specialty_id: int
+    section_part: str
     enrolled_since: datetime.date | None = None
 
 
@@ -57,7 +57,6 @@ class StudentProfileOut(BaseModel):
     section_shift: str
     status: str
     enrolled_since: datetime.date | None
-    specialty_id: int
     specialty_name: str
 
     class Config:

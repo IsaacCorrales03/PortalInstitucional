@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import time
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -8,8 +8,8 @@ class AvailabilityCreateSchema(BaseModel):
     day_of_week: Literal[
         "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"
     ]
-    start_time: datetime
-    end_time: datetime
+    start_time: time
+    end_time: time
 
     @field_validator("end_time")
     def validate_time_range(cls, v, values):
@@ -23,12 +23,12 @@ class AvailabilityBulkCreateSchema(BaseModel):
 class AvailabilityResponseSchema(BaseModel):
     id: int
     day_of_week: str
-    start_time: datetime.time
-    end_time: datetime.time
+    start_time: time
+    end_time: time
 
     class Config:
         from_attributes = True
 class AvailabilityUpdateSchema(BaseModel):
     day_of_week: str | None = None
-    start_time: datetime.time | None = None
-    end_time: datetime.time | None = None
+    start_time: time | None = None
+    end_time: time | None = None

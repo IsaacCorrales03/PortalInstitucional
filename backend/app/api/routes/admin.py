@@ -90,15 +90,6 @@ def create_user(
                 )
 
             sp = user_data.student_profile
-
-            if not sp.section_id:
-                raise HTTPException(400, "Falta sección")
-            if not sp.section_part or sp.section_part not in ["A", "B"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Debe especificar si pertenece a A o B",
-                )
-
             section = db.query(Section).filter(Section.id == sp.section_id).first()
             if not section:
                 raise HTTPException(status_code=404, detail="Sección no existe")
@@ -108,10 +99,16 @@ def create_user(
                 student_code=generate_student_code(db),
                 year_level=sp.year_level,
                 specialty_id=sp.specialty_id,
-                section_id=section.id,
-                section_part=sp.section_part,
                 section_shift=sp.section_shift,
                 enrolled_since=sp.enrolled_since,
+                status="activo",
+            ))
+
+            # Crear la inscripción inicial en la sección
+            db.add(Enrollment(
+                user_id=user.id,
+                section_id=section.id,
+                section_part=sp.section_part,
                 status="activo",
             ))
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 
-from app.api.routes import admin, auth, specialities, dashboard, courses
+from app.api.routes import admin, auth, specialities, dashboard
 from app.db.session import get_db
 
 # =========================
@@ -36,7 +36,6 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(specialities.router)
 app.include_router(dashboard.router)
-app.include_router(courses.router)
 
 # =========================
 # Middleware CORS

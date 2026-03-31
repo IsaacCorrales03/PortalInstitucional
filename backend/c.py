@@ -343,6 +343,7 @@ def create_superadmin(db: Session):
         "manage_admissions": "Gestionar admisiones",
         "view_grade_reports": "Ver boletines de calificaciones",
         "send_announcements": "Enviar anuncios institucionales",
+        
     }
 
     for code, description in all_permissions.items():
