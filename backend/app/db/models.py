@@ -10,7 +10,7 @@ from app.db.base import Base
 # =========================
 # USERS
 # =========================
-class User(DeclarativeBase):
+class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
