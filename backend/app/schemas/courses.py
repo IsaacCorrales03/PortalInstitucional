@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class CourseAssignmentSchema(BaseModel):
     course_id: int
     professor_id: int
+    section_part: str | None = None
 
 class CourseCreateSchema(BaseModel):
     name: str
@@ -22,5 +23,9 @@ class CourseUpdateSchema(BaseModel):
 class CourseOut(BaseModel):
     course_id: int
     course_name: str
-    description: str | None
+    description: str | None = None
     professor_name: str
+    is_technical: bool
+    is_guide: bool
+    section_part: str | None = None
+    specialty_id: int | None = None

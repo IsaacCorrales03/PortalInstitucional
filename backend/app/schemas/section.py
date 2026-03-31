@@ -47,4 +47,4 @@ class SectionOut(BaseModel):
     specialty_name: str
     section_part:str
     guide_professor_name: str | None
-    courses: list[SectionCourseOut]
+

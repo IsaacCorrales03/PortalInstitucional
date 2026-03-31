@@ -9,44 +9,65 @@ from datetime import time
 # COURSES (MATERIAS)
 # =========================
 from app.db.models import Course, StudyPlan, StudyPlanCourse
+config_plans = [
+    {
+        "name": "Config y Soporte 1",
+        "year": 1,
+        "courses": [
+            "Tecnologías de Información, Comunicación y Servicios",
+            "Administración y Soporte a Computadoras",
+            "Programación",
+            "Inglés Técnico",
+            "Educación Física",
+        ],
+    },
+    {
+        "name": "Config y Soporte 2",
+        "year": 2,
+        "courses": [
+            "Emprendimiento",
+            "Administración y Soporte a Computadoras",
+            "Configuración y Soporte a Redes",
+            "Inglés Técnico",
+            "Educación Física",
+        ],
+    },
+    {
+        "name": "Config y Soporte 3",
+        "year": 3,
+        "courses": [
+            "Inglés Técnico",
+            "Tecnologías de la Información",
+            "Configuración y Soporte a Redes",
+            "Administración y Soporte a Computadoras",
+        ],
+    },
+]
 
-def create_courses(db: Session):
-    courses = [
-        "Español",
-        "Matemáticas",
-        "Física Matemática",
-        "Estudios Sociales",
-        "Educación Cívica",
-        "Inglés Académico",
-        "Educación Musical",
-        "Educación Física",
-        "Guía",
-        "Ética",
-        "Biología",
-        "Química",
-        "Psicología",
-    ]
-
-    created = {}
-
-    for name in courses:
-        course = db.query(Course).filter(Course.name == name).first()
-
-        if not course:
-            if name == "Guía":
-                course = Course(name=name, is_guide=True)
-            else:
-                course = Course(name=name)
-            db.add(course)
-            db.commit()
-            db.refresh(course)
-            print(f"Materia creada: {name}")
-        else:
-            print(f"Materia ya existe: {name}")
-
-        created[name] = course
-
-    return created
+accounting_plans = [
+    {
+        "name": "Contabilidad 1",
+        "year": 1,
+        "courses": [
+            "Gestión Contable",
+            "Inglés Técnico",
+            "Educación Física",
+            "Gestión de Tecnologías Digitales Contables",
+        ],
+    }
+]
+TECHNICAL_COURSES = {
+    "Tecnologías de Información, Comunicación y Servicios",
+    "Administración y Soporte a Computadoras",
+    "Programación",
+    "Inglés Técnico",
+    "Emprendimiento",
+    "Configuración y Soporte a Redes",
+    "Tecnologías de la Información",
+    "Gestión Contable",
+    "Gestión de Tecnologías Digitales Contables",
+    "Educación Física",  # compartida, pero técnica
+}
 
 # =========================
 # STUDY PLANS (ACADÉMICOS)
@@ -64,7 +85,6 @@ def create_academic_study_plans(db: Session, courses: dict):
                 "Educación Cívica",
                 "Inglés Académico",
                 "Educación Musical",
-                "Educación Física",
                 "Guía",
                 "Ética",
             ],
@@ -82,7 +102,6 @@ def create_academic_study_plans(db: Session, courses: dict):
                 "Educación Cívica",
                 "Inglés Académico",
                 "Educación Musical",
-                "Educación Física",
                 "Guía",
                 "Ética",
             ],
@@ -139,7 +158,54 @@ def create_academic_study_plans(db: Session, courses: dict):
                 ))
                 db.commit()
                 print(f"  + {course_name}")
-                
+
+def create_specialty_plans(db: Session, courses: dict, specialty_name: str, plans: list):
+    specialty = db.query(Specialty).filter(
+        Specialty.name == specialty_name
+    ).first()
+
+    if not specialty:
+        raise Exception(f"Especialidad no encontrada: {specialty_name}")
+
+    for plan_data in plans:
+        plan = db.query(StudyPlan).filter(
+            StudyPlan.name == plan_data["name"]
+        ).first()
+
+        if not plan:
+            plan = StudyPlan(
+                name=plan_data["name"],
+                year_level=plan_data["year"],
+                specialty_id=specialty.id
+            )
+            db.add(plan)
+            db.commit()
+            db.refresh(plan)
+            print(f"Plan creado: {plan.name}")
+        else:
+            print(f"Plan ya existe: {plan.name}")
+
+        for cname in plan_data["courses"]:
+            course = courses.get(cname)
+
+            if not course:
+                print(f"⚠ Curso no encontrado: {cname}")
+                continue
+
+            exists = db.query(StudyPlanCourse).filter(
+                StudyPlanCourse.study_plan_id == plan.id,
+                StudyPlanCourse.course_id == course.id
+            ).first()
+
+            if not exists:
+                db.add(StudyPlanCourse(
+                    study_plan_id=plan.id,
+                    course_id=course.id
+                ))
+                print(f"  + {cname}")
+
+        db.commit()
+
 def generate_password(length: int = 16) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*()"
     return ''.join(secrets.choice(alphabet) for _ in range(length))
@@ -223,13 +289,134 @@ def create_specialties(db: Session):
             else:
                 print(f"Especialidad ya existe: {spec['name']}")
 
+def create_courses(db: Session):
+    courses = [
+        "Español", "Matemáticas", "Física Matemática", "Estudios Sociales",
+        "Educación Cívica", "Inglés Académico", "Educación Musical",
+        "Educación Física", "Guía", "Ética", "Biología", "Química", "Psicología",
+        "Tecnologías de Información, Comunicación y Servicios",
+        "Administración y Soporte a Computadoras",
+        "Programación",
+        "Inglés Técnico",
+        "Emprendimiento",
+        "Configuración y Soporte a Redes",
+        "Tecnologías de la Información",
+        "Gestión Contable",
+        "Gestión de Tecnologías Digitales Contables",
+    ]
+
+    descriptions = {
+        "Español": "Comprensión lectora, redacción, ortografía y literatura.",
+        "Matemáticas": "Álgebra, geometría, funciones y resolución de problemas.",
+        "Física Matemática": "Aplicación de matemáticas en fenómenos físicos.",
+        "Estudios Sociales": "Historia, geografía y sociedad.",
+        "Educación Cívica": "Ciudadanía, derechos y deberes.",
+        "Inglés Académico": "Comprensión y producción en inglés formal.",
+        "Educación Musical": "Teoría musical y expresión artística.",
+        "Educación Física": "Actividad física, salud y deporte.",
+        "Guía": "Acompañamiento académico y orientación estudiantil.",
+        "Ética": "Valores, moral y toma de decisiones.",
+        "Biología": "Seres vivos y procesos biológicos.",
+        "Química": "Materia, reacciones y laboratorio.",
+        "Psicología": "Conducta humana y procesos mentales.",
+        "Tecnologías de Información, Comunicación y Servicios": "Fundamentos TIC y servicios digitales.",
+        "Administración y Soporte a Computadoras": "Mantenimiento y soporte técnico de equipos.",
+        "Programación": "Lógica, algoritmos y desarrollo de software.",
+        "Inglés Técnico": "Terminología técnica en inglés.",
+        "Emprendimiento": "Creación y gestión de proyectos.",
+        "Configuración y Soporte a Redes": "Instalación y mantenimiento de redes.",
+        "Tecnologías de la Información": "Sistemas informáticos y gestión tecnológica.",
+        "Gestión Contable": "Procesos contables y financieros.",
+        "Gestión de Tecnologías Digitales Contables": "Herramientas digitales aplicadas a contabilidad.",
+    }
+
+    # clave lógica → nombre en tabla specialties
+    specialty_map = {
+        "TEC": "Configuración y Soporte",
+        "CONT": "Contabilidad",
+        None: None  # materias generales
+    }
+
+    # materia → clave
+    course_specialty_key = {
+        "Programación": "TEC",
+        "Administración y Soporte a Computadoras": "TEC",
+        "Configuración y Soporte a Redes": "TEC",
+        "Tecnologías de la Información": "TEC",
+        "Tecnologías de Información, Comunicación y Servicios": "TEC",
+        
+        "Gestión Contable": "CONT",
+        "Gestión de Tecnologías Digitales Contables": "CONT",
+
+
+    }
+
+    # precargar specialties reales desde DB
+    specialties = {
+        s.name: s.id for s in db.query(Specialty).all()
+    }
+
+    created = {}
+
+    for name in courses:
+        course = db.query(Course).filter(Course.name == name).first()
+
+        desc = descriptions.get(name)
+        key = course_specialty_key.get(name)
+        specialty_name = specialty_map.get(key)
+        specialty_id = specialties.get(specialty_name) if specialty_name else None
+
+        if specialty_name and not specialty_id:
+            raise Exception(f"Specialty no existe en DB: {specialty_name}")
+
+        if not course:
+            course = Course(
+                name=name,
+                is_guide=(name == "Guía"),
+                is_technical=(name in TECHNICAL_COURSES),
+                description=desc,
+                specialty_id=specialty_id
+            )
+            db.add(course)
+            db.commit()
+            db.refresh(course)
+            print(f"Materia creada: {name}")
+        else:
+            updated = False
+
+            if desc and course.description != desc:
+                course.description = desc
+                updated = True
+
+            if course.specialty_id != specialty_id:
+                course.specialty_id = specialty_id
+                updated = True
+
+            if name == "Guía" and not course.is_guide:
+                course.is_guide = True
+                updated = True
+
+            if updated:
+                db.commit()
+                db.refresh(course)
+                print(f"Materia actualizada: {name}")
+            else:
+                print(f"Materia ya existe: {name}")
+
+        created[name] = course
+
+    return created
+
+
 def create_professors(db: Session):
     role = db.query(Role).filter(Role.name == "profesor").first()
     if not role:
         raise Exception("Rol profesor no existe")
 
-    # mapa nombre → cursos
-    data = {
+    # =========================
+    # PROFESORES BASE
+    # =========================
+    base_data = {
         "Martha": ["Español"],
         "Marvin": ["Español"],
         "Josefa": ["Ética"],
@@ -246,20 +433,32 @@ def create_professors(db: Session):
         "Yendry": ["Educación Cívica", "Estudios Sociales"],
         "Alejandro": ["Educación Cívica", "Estudios Sociales"],
         "Heidy": ["Psicología"],
+        "Carlos M.": ["Tecnologías de Información, Comunicación y Servicios", "Administración y Soporte a Computadoras", "Programación", "Emprendimiento", "Configuración y Soporte a Redes", "Tecnologías de la Información"],
+        "Keneth C.": ["Tecnologías de Información, Comunicación y Servicios", "Administración y Soporte a Computadoras", "Programación", "Emprendimiento", "Configuración y Soporte a Redes", "Tecnologías de la Información"],
+        "William M.": ["Tecnologías de Información, Comunicación y Servicios", "Administración y Soporte a Computadoras", "Programación", "Emprendimiento", "Configuración y Soporte a Redes", "Tecnologías de la Información"],
+        "Rebecca T.": ["Tecnologías de Información, Comunicación y Servicios", "Administración y Soporte a Computadoras", "Programación", "Emprendimiento", "Configuración y Soporte a Redes", "Tecnologías de la Información"],
+        "Lizeth O.": ["Inglés Técnico"],
+        "Henry F.":["Inglés Técnico"],
+        "Gerardo S.": ["Gestión Contable", "Gestión de Tecnologías Digitales Contables",]
+        
     }
 
-    # obtener cursos existentes
-    courses = db.query(Course).all()
-    course_map = {c.name: c for c in courses}
+    # =========================
+    # CURSOS
+    # =========================
+    all_courses = db.query(Course).all()
+    course_map = {c.name: c for c in all_courses}
 
     missing = set()
     created_users = []
 
-    for name, course_names in data.items():
+    # =========================
+    # CREAR PROFESORES BASE
+    # =========================
+    for name, course_names in base_data.items():
         email = f"{name.lower()}@portal.com"
 
         if db.query(User).filter(User.email == email).first():
-            print(f"Profesor ya existe: {email}")
             continue
 
         password = generate_password()
@@ -274,17 +473,14 @@ def create_professors(db: Session):
         db.add(user)
         db.flush()
 
-        # rol
         db.add(UserRole(user_id=user.id, role_id=role.id))
 
-        # perfil profesor
         db.add(ProfessorProfile(
             user_id=user.id,
             specialty_area=None,
             current_status="disponible"
         ))
 
-        # disponibilidad (7am–5pm lunes a viernes)
         for day in ["lunes", "martes", "miercoles", "jueves", "viernes"]:
             db.add(ProfessorAvailability(
                 professor_id=user.id,
@@ -293,7 +489,6 @@ def create_professors(db: Session):
                 end_time=time(17, 0),
             ))
 
-        # asignación de cursos
         for cname in course_names:
             course = course_map.get(cname)
             if not course:
@@ -307,6 +502,9 @@ def create_professors(db: Session):
 
         created_users.append((email, password))
 
+    # =========================
+    # COMMIT FINAL
+    # =========================
     db.commit()
 
     print("\n=== PROFESORES CREADOS ===")
@@ -318,7 +516,7 @@ def create_professors(db: Session):
         for m in sorted(missing):
             print(f"- {m}")
 
-# =========================
+
 # SUPERADMIN SETUP
 # =========================
 def create_superadmin(db: Session):
@@ -326,6 +524,8 @@ def create_superadmin(db: Session):
     create_specialties(db)
     courses = create_courses(db)
     create_academic_study_plans(db, courses)
+    create_specialty_plans(db, courses, "Configuración y Soporte", config_plans)
+    create_specialty_plans(db, courses, "Contabilidad", accounting_plans)
     super_role = roles["superadmin"]
     create_professors(db)   
     all_permissions = {

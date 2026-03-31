@@ -283,14 +283,13 @@ class Course(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    # en tu modelo Course
     is_guide: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_technical: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # nuevo
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     specialty_id: Mapped[int | None] = mapped_column(
         ForeignKey("specialties.id"), nullable=True
     )
     year_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
 
 class Section(Base):
     __tablename__ = "sections"
@@ -321,7 +320,7 @@ class SectionCourse(Base):
     professor_id = mapped_column(ForeignKey("users.id"), nullable=False)
     section_part = mapped_column(String(1), nullable=True)
     __table_args__ = (
-        UniqueConstraint("section_id", "course_id"), 
+        UniqueConstraint("section_id", "course_id", "section_part"), 
     )
 
 class Schedule(Base):
@@ -623,7 +622,6 @@ class Election(Base):
     """
     status: 'pendiente' | 'abierta' | 'cerrada'
     """
-
     __tablename__ = "election"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     #name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -634,3 +632,8 @@ class Election(Base):
         DateTime, default=datetime.datetime.now(datetime.timezone.utc)
     )
     closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=False)
+
+# Plan de gobierno: tiene gobierno al que pertenece
+# id_plan
+# propuestasPlan: relaciona el id, plan de gobierno, con una propuesta
+# propuesta: Objetivo, tiempo de realización, prioridad, descrion

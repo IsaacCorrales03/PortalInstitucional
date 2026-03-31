@@ -30,25 +30,37 @@ const EMPTY_FORM = {
   course_assignments: [],
 };
 
+const EMPTY_DRAFT = {
+  course_key:   "",   // formato "_part::course_id"
+  course_id:    "",
+  _part:        "",
+  professor_id: "",
+};
+
 export default function SectionsView() {
   const { sections, specialties, professors, ensure, reload } = useStore();
 
-  const [open, setOpen]     = useState(false);
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [error, setError]   = useState("");
+  const [open, setOpen]       = useState(false);
+  const [form, setForm]       = useState(EMPTY_FORM);
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [assignmentDraft, setAssignmentDraft] = useState({
-    course_id: "",
-    professor_id: "",
-  });
+  const [assignmentDraft, setAssignmentDraft] = useState(EMPTY_DRAFT);
 
-  // ── Plan de estudios según year_level ──────────────────────────
-  const [planCourses, setPlanCourses]     = useState([]);
-  const [planLoading, setPlanLoading]     = useState(false);
-  const [planError, setPlanError]         = useState("");
+  // ── Plan general según year_level ─────────────────────────────
+  const [planCourses, setPlanCourses]   = useState([]);
+  const [planLoading, setPlanLoading]   = useState(false);
+  const [planError, setPlanError]       = useState("");
 
-  // ── Profesores disponibles para la materia del draft ───────────
+  // ── Planes técnicos A y B ─────────────────────────────────────
+  const [techCoursesA, setTechCoursesA] = useState([]);
+  const [techCoursesB, setTechCoursesB] = useState([]);
+  const [techLoadingA, setTechLoadingA] = useState(false);
+  const [techLoadingB, setTechLoadingB] = useState(false);
+  const [techErrorA,   setTechErrorA]   = useState("");
+  const [techErrorB,   setTechErrorB]   = useState("");
+
+  // ── Profesores disponibles para la materia del draft ──────────
   const [courseProfessors, setCourseProfessors]               = useState([]);
   const [courseProfessorsLoading, setCourseProfessorsLoading] = useState(false);
 
@@ -58,14 +70,13 @@ export default function SectionsView() {
     ensure("professors");
   }, [ensure]);
 
-  // Cuando cambia year_level → cargar materias del plan
+  // Cuando cambia year_level → cargar plan general
   useEffect(() => {
     if (!form.year_level) {
       setPlanCourses([]);
       setPlanError("");
-      // Limpiar asignaciones al cambiar de nivel
       setForm(f => ({ ...f, course_assignments: [] }));
-      setAssignmentDraft({ course_id: "", professor_id: "" });
+      setAssignmentDraft(EMPTY_DRAFT);
       return;
     }
 
@@ -77,9 +88,8 @@ export default function SectionsView() {
       .then(data => {
         if (!cancelled) {
           setPlanCourses(data.courses ?? []);
-          // Limpiar asignaciones previas porque el plan cambió
           setForm(f => ({ ...f, course_assignments: [] }));
-          setAssignmentDraft({ course_id: "", professor_id: "" });
+          setAssignmentDraft(EMPTY_DRAFT);
         }
       })
       .catch(e => {
@@ -93,6 +103,40 @@ export default function SectionsView() {
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.year_level]);
+
+  // Cuando cambia specialty_id_a o year_level → cargar plan técnico A
+  useEffect(() => {
+    if (!form.specialty_id_a || !form.year_level) {
+      setTechCoursesA([]);
+      setTechErrorA("");
+      return;
+    }
+    let cancelled = false;
+    setTechLoadingA(true);
+    setTechErrorA("");
+    api.getStudyPlanBySpecialty(form.year_level, form.specialty_id_a)
+      .then(data => { if (!cancelled) setTechCoursesA(data.courses ?? []); })
+      .catch(e  => { if (!cancelled) { setTechCoursesA([]); setTechErrorA(e.message || "No se encontró plan técnico A."); } })
+      .finally(() => { if (!cancelled) setTechLoadingA(false); });
+    return () => { cancelled = true; };
+  }, [form.specialty_id_a, form.year_level]);
+
+  // Cuando cambia specialty_id_b o year_level → cargar plan técnico B
+  useEffect(() => {
+    if (!form.specialty_id_b || !form.year_level) {
+      setTechCoursesB([]);
+      setTechErrorB("");
+      return;
+    }
+    let cancelled = false;
+    setTechLoadingB(true);
+    setTechErrorB("");
+    api.getStudyPlanBySpecialty(form.year_level, form.specialty_id_b)
+      .then(data => { if (!cancelled) setTechCoursesB(data.courses ?? []); })
+      .catch(e  => { if (!cancelled) { setTechCoursesB([]); setTechErrorB(e.message || "No se encontró plan técnico B."); } })
+      .finally(() => { if (!cancelled) setTechLoadingB(false); });
+    return () => { cancelled = true; };
+  }, [form.specialty_id_b, form.year_level]);
 
   // Cuando cambia la materia del draft → cargar profesores
   useEffect(() => {
@@ -109,55 +153,72 @@ export default function SectionsView() {
     return () => { cancelled = true; };
   }, [assignmentDraft.course_id]);
 
-  // ── Listas derivadas ───────────────────────────────────────────
+  // ── Listas derivadas ──────────────────────────────────────────
   const professorsList = professors?.data ?? [];
   const specialtyList  = specialties?.data ?? [];
 
-  // Materia guía del plan actual (is_guide === true)
+  // Materia guía del plan general (is_guide === true)
   const guideCourse = planCourses.find(c => c.is_guide) ?? null;
+
+  // Pool unificado de todas las materias de los tres planes, etiquetadas por origen
+  const allPlanCourses = [
+    ...planCourses.map(c  => ({ ...c, _part: "General"   })),
+    ...techCoursesA.map(c => ({ ...c, _part: "Técnico A" })),
+    ...techCoursesB.map(c => ({ ...c, _part: "Técnico B" })),
+  ];
+
+  // Materias que aún no tienen profesor asignado.
+  // La clave de unicidad es course_id + _part, así "Inglés Técnico" puede
+  // aparecer tanto en Técnico A como en Técnico B con profesores distintos.
+  const availablePlanCourses = allPlanCourses.filter(c =>
+    !c.is_guide &&
+    !form.course_assignments.some(
+      a => a.course_id === c.id && a._part === c._part
+    )
+  );
 
   // ── Cambio de profesor guía → auto-asignar materia guía ───────
   const handleGuideProfessorChange = (e) => {
     const profId = e.target.value;
 
     setForm(f => {
-      // Si no hay materia guía en el plan o no se eligió profesor, solo actualizar el campo
       if (!guideCourse || !profId) {
-        // Si se deselecciona el profesor, quitar la asignación de materia guía
         const withoutGuide = guideCourse
-          ? f.course_assignments.filter(a => a.course_id !== guideCourse.id)
+          ? f.course_assignments.filter(a => !(a.course_id === guideCourse.id && a._part === "General"))
           : f.course_assignments;
         return { ...f, guide_professor_id: profId, course_assignments: withoutGuide };
       }
-
-      // Remover asignación previa de la materia guía (si existía) y agregar la nueva
-      const withoutGuide = f.course_assignments.filter(a => a.course_id !== guideCourse.id);
+      const withoutGuide = f.course_assignments.filter(
+        a => !(a.course_id === guideCourse.id && a._part === "General")
+      );
       return {
         ...f,
         guide_professor_id: profId,
         course_assignments: [
           ...withoutGuide,
-          { course_id: guideCourse.id, professor_id: Number(profId) },
+          { course_id: guideCourse.id, professor_id: Number(profId), _part: "General" },
         ],
       };
     });
   };
 
-  // ── Validación ─────────────────────────────────────────────────
+  // ── Validación ────────────────────────────────────────────────
   function validate() {
-    if (!form.name.trim())          return "Nombre requerido.";
-    if (!form.year_level)           return "Nivel requerido.";
-    if (planError)                  return "No hay plan académico válido para este nivel.";
+    if (!form.name.trim())        return "Nombre requerido.";
+    if (!form.year_level)         return "Nivel requerido.";
+    if (planError)                return "No hay plan académico general válido para este nivel.";
     if (!form.specialty_id_a || !form.specialty_id_b)
-                                    return "Especialidades A y B requeridas.";
+                                  return "Especialidades A y B requeridas.";
     if (form.specialty_id_a === form.specialty_id_b)
-                                    return "A y B no pueden ser iguales.";
+                                  return "A y B no pueden ser iguales.";
+    if (techErrorA)               return "No hay plan técnico válido para la especialidad A.";
+    if (techErrorB)               return "No hay plan técnico válido para la especialidad B.";
     if (form.course_assignments.length === 0)
-                                    return "Asignar al menos una materia.";
+                                  return "Asignar al menos una materia.";
     return null;
   }
 
-  // ── Submit ─────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────
   const handleCreate = async () => {
     const err = validate();
     if (err) return setError(err);
@@ -168,19 +229,27 @@ export default function SectionsView() {
     try {
       const payload = {
         ...form,
-        academic_year:      String(form.academic_year),   // siempre string al backend
+        academic_year:      String(form.academic_year),
         year_level:         Number(form.year_level),
         specialty_id_a:     Number(form.specialty_id_a),
         specialty_id_b:     Number(form.specialty_id_b),
         guide_professor_id: form.guide_professor_id
           ? Number(form.guide_professor_id)
           : null,
+        // _part es solo UI, no se envía al backend
+        course_assignments: form.course_assignments.map(({ course_id, professor_id, _part }) => ({
+        course_id,
+        professor_id,
+        section_part: _part || null,   // "Técnico A", "Técnico B", "General", o null
+      }))
       };
 
       await api.createSection(payload);
       setOpen(false);
       setForm(EMPTY_FORM);
       setPlanCourses([]);
+      setTechCoursesA([]);
+      setTechCoursesB([]);
       reload("sections");
     } catch (e) {
       setError(e.message || "Error");
@@ -189,7 +258,7 @@ export default function SectionsView() {
     }
   };
 
-  // ── Helpers asignaciones ───────────────────────────────────────
+  // ── Helpers asignaciones ──────────────────────────────────────
   const addAssignment = () => {
     if (!assignmentDraft.course_id || !assignmentDraft.professor_id) return;
 
@@ -200,18 +269,21 @@ export default function SectionsView() {
         {
           course_id:    Number(assignmentDraft.course_id),
           professor_id: Number(assignmentDraft.professor_id),
+          _part:        assignmentDraft._part ?? "",
         },
       ],
     }));
-    setAssignmentDraft({ course_id: "", professor_id: "" });
+    setAssignmentDraft(EMPTY_DRAFT);
     setError("");
   };
 
   const removeAssignment = (idx) => {
     const removed = form.course_assignments[idx];
+    const isGuideRow = guideCourse &&
+      removed.course_id === guideCourse.id &&
+      removed._part === "General";
 
-    // Si se elimina la materia guía, también limpiar el profesor guía del form
-    if (guideCourse && removed.course_id === guideCourse.id) {
+    if (isGuideRow) {
       setForm(f => ({
         ...f,
         guide_professor_id: "",
@@ -225,14 +297,10 @@ export default function SectionsView() {
     }
   };
 
-  // Materias del plan que aún no tienen profesor asignado
-  // La materia guía se excluye porque se asigna automáticamente
-  const availablePlanCourses = planCourses.filter(c =>
-    !c.is_guide &&
-    !form.course_assignments.some(a => a.course_id === c.id)
-  );
+  // ── ¿Están todos los planes cargados para habilitar la sección de materias? ──
+  const plansLoading = planLoading || techLoadingA || techLoadingB;
 
-  // ──────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   return (
     <div className="db-view">
 
@@ -339,14 +407,14 @@ export default function SectionsView() {
                 </div>
               </div>
 
-              {/* Aviso plan no encontrado */}
+              {/* Aviso plan general no encontrado */}
               {form.year_level && planError && (
                 <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
                   {planError}
                 </div>
               )}
 
-              {/* Aviso cargando plan */}
+              {/* Aviso cargando plan general */}
               {planLoading && (
                 <div style={{ fontSize: 12, color: "var(--text-subtle)", display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="db-spinner" style={{ width: 11, height: 11 }} />
@@ -426,49 +494,94 @@ export default function SectionsView() {
                   border: "1px solid var(--border-light)",
                   borderRadius: "var(--radius-md)",
                 }}>
-                  {[form.specialty_id_a, form.specialty_id_b].map((sid, i) => {
+                  {[
+                    { sid: form.specialty_id_a, label: "A", loading: techLoadingA, error: techErrorA },
+                    { sid: form.specialty_id_b, label: "B", loading: techLoadingB, error: techErrorB },
+                  ].map(({ sid, label, loading: tl, error: te }) => {
                     const sp = specialtyList.find(s => String(s.id) === String(sid));
                     return (
-                      <div key={i} style={{
+                      <div key={label} style={{
                         flex: 1, display: "flex", alignItems: "center", gap: 6,
                         padding: "6px 10px",
-                        background: "var(--accent-soft)",
-                        border: "1px solid rgba(99,130,255,.2)",
+                        background: te ? "var(--error-soft, rgba(248,113,113,.08))" : "var(--accent-soft)",
+                        border: `1px solid ${te ? "rgba(248,113,113,.25)" : "rgba(99,130,255,.2)"}`,
                         borderRadius: 8,
                       }}>
                         <span style={{
-                          fontSize: 10, fontWeight: 800, color: "var(--accent)",
+                          fontSize: 10, fontWeight: 800,
+                          color: te ? "var(--error, #f87171)" : "var(--accent)",
                           letterSpacing: ".06em",
                         }}>
-                          {i === 0 ? "A" : "B"}
+                          {label}
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", flex: 1 }}>
                           {sp?.name ?? `ID ${sid}`}
                         </span>
+                        {tl && <span className="db-spinner" style={{ width: 10, height: 10, flexShrink: 0 }} />}
+                        {!tl && !te && (
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"
+                            stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round">
+                            <path d="M3 8l4 4 6-6"/>
+                          </svg>
+                        )}
+                        {!tl && te && (
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"
+                            stroke="var(--error,#f87171)" strokeWidth="2.2" strokeLinecap="round">
+                            <path d="M4 4l8 8M12 4l-8 8"/>
+                          </svg>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
 
+              {/* Errores de planes técnicos */}
+              {form.specialty_id_a && techErrorA && (
+                <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
+                  Plan técnico A: {techErrorA}
+                </div>
+              )}
+              {form.specialty_id_b && techErrorB && (
+                <div className="db-inline-alert db-inline-alert--warning" style={{ fontSize: 12 }}>
+                  Plan técnico B: {techErrorB}
+                </div>
+              )}
+
               {/* ── Materias y profesores ── */}
               <Divider label="Materias y profesores" />
 
-              {/* Bloquear sección si no hay plan cargado */}
               {!form.year_level || planError ? (
                 <div style={{ fontSize: 12, color: "var(--text-subtle)", textAlign: "center", padding: "8px 0" }}>
                   Selecciona un nivel para ver las materias del plan.
                 </div>
-              ) : planLoading ? null : (
+              ) : plansLoading ? (
+                <div style={{ fontSize: 12, color: "var(--text-subtle)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="db-spinner" style={{ width: 11, height: 11 }} />
+                  Cargando planes técnicos...
+                </div>
+              ) : (techErrorA || techErrorB) ? (
+                <div style={{ fontSize: 12, color: "var(--text-subtle)", textAlign: "center", padding: "8px 0" }}>
+                  Resuelve los errores de planes técnicos para asignar materias.
+                </div>
+              ) : (
                 <>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {/* Selector de materia — solo las del plan, no guía, no asignadas */}
+                    {/* Selector de materia — value = "_part::course_id" para unicidad */}
                     <select
                       className="db-input"
-                      value={assignmentDraft.course_id}
-                      onChange={e =>
-                        setAssignmentDraft({ course_id: e.target.value, professor_id: "" })
-                      }
+                      value={assignmentDraft.course_key}
+                      onChange={e => {
+                        const key = e.target.value;
+                        if (!key) {
+                          setAssignmentDraft(EMPTY_DRAFT);
+                          return;
+                        }
+                        const separatorIdx = key.indexOf("::");
+                        const part = key.slice(0, separatorIdx);
+                        const id   = key.slice(separatorIdx + 2);
+                        setAssignmentDraft({ course_key: key, course_id: id, _part: part, professor_id: "" });
+                      }}
                       disabled={availablePlanCourses.length === 0}
                     >
                       <option value="">
@@ -476,9 +589,19 @@ export default function SectionsView() {
                           ? "— Todas asignadas —"
                           : "— Materia —"}
                       </option>
-                      {availablePlanCourses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
+                      {["General", "Técnico A", "Técnico B"].map(part => {
+                        const group = availablePlanCourses.filter(c => c._part === part);
+                        if (group.length === 0) return null;
+                        return (
+                          <optgroup key={part} label={part}>
+                            {group.map(c => (
+                              <option key={`${part}::${c.id}`} value={`${part}::${c.id}`}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
                     </select>
 
                     {/* Selector de profesor */}
@@ -527,9 +650,9 @@ export default function SectionsView() {
               {form.course_assignments.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {form.course_assignments.map((a, i) => {
-                    const c = planCourses.find(x => x.id === a.course_id);
+                    const c = allPlanCourses.find(x => x.id === a.course_id && x._part === a._part);
                     const p = professorsList.find(x => x.id === a.professor_id);
-                    const isGuide = guideCourse?.id === a.course_id;
+                    const isGuide = guideCourse?.id === a.course_id && a._part === "General";
                     return (
                       <div key={i} className="db-assignment-row">
                         <strong style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -541,6 +664,16 @@ export default function SectionsView() {
                               padding: "1px 5px", borderRadius: 4, textTransform: "uppercase",
                             }}>
                               guía
+                            </span>
+                          )}
+                          {a._part && a._part !== "General" && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: ".06em",
+                              color: "var(--text-subtle)", background: "var(--bg-elevated)",
+                              padding: "1px 5px", borderRadius: 4, textTransform: "uppercase",
+                              border: "1px solid var(--border-light)",
+                            }}>
+                              {a._part}
                             </span>
                           )}
                         </strong>

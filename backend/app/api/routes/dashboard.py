@@ -11,6 +11,7 @@ from app.schemas.courses import *
 from app.schemas.attendance import *
 from app.schemas.dashboard import *
 from app.utils.dashboard import *
+TECHNICAL_OVERRIDES = {"educación física"}
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -61,14 +62,14 @@ def get_my_section(
     db: Session = Depends(get_db),
 ):
     profile = require_student_profile(current_user, db)
-    section = require_section(profile, db)
+    enroll = db.query(Enrollment).filter(Enrollment.user_id == profile.user_id).first()
+    section = require_section(enroll, db)
 
-    # Obtener especialidad según A/B directamente
     selected = (
         db.query(SectionSpecialty)
         .filter(
             SectionSpecialty.section_id == section.id,
-            SectionSpecialty.part == profile.section_part
+            SectionSpecialty.part == enroll.section_part
         )
         .first()
     )
@@ -83,32 +84,13 @@ def get_my_section(
         if section.guide_professor_id else None
     )
 
-    section_courses = (
-        db.query(SectionCourse)
-        .filter(SectionCourse.section_id == section.id)
-        .all()
-    )
-
-    courses_out = []
-    for sc in section_courses:
-        course = db.query(Course).filter(Course.id == sc.course_id).first()
-        professor = db.query(User).filter(User.id == sc.professor_id).first()
-
-        if course:
-            courses_out.append(SectionCourseOut(
-                course_name=course.name,
-                description=course.description,
-                professor_name=professor.full_name if professor else "Sin asignar",
-            ))
-
     return SectionOut(
         section_name=section.name,
         academic_year=section.academic_year,
         shift=profile.section_shift,
-        section_part=profile.section_part,
+        section_part=enroll.section_part,
         specialty_name=specialty.name if specialty else "Sin especialidad",
         guide_professor_name=guide.full_name if guide else None,
-        courses=courses_out,
     )
 
 @router.get("/me/courses", response_model=list[CourseOut])
@@ -117,26 +99,62 @@ def get_my_courses(
     db: Session = Depends(get_db),
 ):
     profile = require_student_profile(current_user, db)
-    section = require_section(profile, db)
+    enroll = db.query(Enrollment).filter(Enrollment.user_id == profile.user_id).first()
+    section = require_section(enroll, db)
+
+    section_specialty = (
+        db.query(SectionSpecialty)
+        .filter(
+            SectionSpecialty.section_id == section.id,
+            SectionSpecialty.part == enroll.section_part,
+        )
+        .first()
+    )
+    student_specialty_id = section_specialty.specialty_id if section_specialty else None
 
     section_courses = (
-        db.query(SectionCourse).filter(SectionCourse.section_id == section.id).all()
+        db.query(SectionCourse)
+        .filter(SectionCourse.section_id == section.id)
+        .all()
     )
 
+    seen = set()
     result = []
+
     for sc in section_courses:
-        course    = db.query(Course).filter(Course.id == sc.course_id).first()
+        course = db.query(Course).filter(Course.id == sc.course_id).first()
+        if not course:
+            continue
+
+        # Filtrar por section_part si la fila tiene una asignada
+        if sc.section_part is not None and sc.section_part != enroll.section_part:
+            continue
+
+        is_technical = course.is_technical  # campo directo en DB
+
+        # Técnica con specialty_id → exclusiva de esa especialidad
+        if is_technical and course.specialty_id is not None:
+            if course.specialty_id != student_specialty_id:
+                continue
+
+        # Deduplicar
+        if course.id in seen:
+            continue
+        seen.add(course.id)
+
         professor = db.query(User).filter(User.id == sc.professor_id).first()
-        if course:
-            result.append(CourseOut(
-                course_id=course.id,
-                course_name=course.name,
-                description=course.description,
-                professor_name=professor.full_name if professor else "Sin asignar",
-            ))
+        result.append(CourseOut(
+            course_id=course.id,
+            course_name=course.name,
+            description=course.description,
+            professor_name=professor.full_name if professor else "Sin asignar",
+            is_technical=is_technical,
+            is_guide=course.is_guide,
+            section_part=sc.section_part,
+            specialty_id=course.specialty_id
+        ))
 
     return result
-
 
 @router.get("/me/attendance", response_model=AttendanceSummaryOut)
 def get_my_attendance(

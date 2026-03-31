@@ -400,7 +400,6 @@ def list_courses(
     current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    check_permission(current_user, "manage_courses", db)
 
     courses = db.query(Course).all()
     return [
@@ -421,7 +420,6 @@ def get_course(
     current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    check_permission(current_user, "manage_courses", db)
 
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -584,7 +582,6 @@ def create_section(
 
     specialty_a = db.query(Specialty).filter(Specialty.id == data.specialty_id_a).first()
     specialty_b = db.query(Specialty).filter(Specialty.id == data.specialty_id_b).first()
-
     if not specialty_a or not specialty_b:
         raise HTTPException(404, "Especialidad no encontrada")
     if data.specialty_id_a == data.specialty_id_b:
@@ -599,13 +596,35 @@ def create_section(
         if not professor:
             raise HTTPException(400, "Profesor guía no válido")
 
+    # Plan general (sin especialidad)
     academic_plan = db.query(StudyPlan).filter(
         StudyPlan.year_level == data.year_level,
         StudyPlan.specialty_id.is_(None),
     ).first()
-
     if not academic_plan:
         raise HTTPException(400, f"No existe plan académico para el año {data.year_level}")
+
+    # ── Planes técnicos ──────────────────────────────────────────
+    tech_plan_a = db.query(StudyPlan).filter(
+        StudyPlan.year_level == data.year_level,
+        StudyPlan.specialty_id == data.specialty_id_a,
+    ).first()
+    if not tech_plan_a:
+        raise HTTPException(
+            400,
+            f"No existe plan técnico para {specialty_a.name} (año {data.year_level})",
+        )
+
+    tech_plan_b = db.query(StudyPlan).filter(
+        StudyPlan.year_level == data.year_level,
+        StudyPlan.specialty_id == data.specialty_id_b,
+    ).first()
+    if not tech_plan_b:
+        raise HTTPException(
+            400,
+            f"No existe plan técnico para {specialty_b.name} (año {data.year_level})",
+        )
+    # ─────────────────────────────────────────────────────────────
 
     section = Section(
         name=data.name,
@@ -615,8 +634,11 @@ def create_section(
     db.add(section)
     db.flush()
 
-    db.add(SectionStudyPlan(section_id=section.id, study_plan_id=academic_plan.id, part=None))
-
+    db.add_all([
+        SectionStudyPlan(section_id=section.id, study_plan_id=academic_plan.id,  part=None),
+        SectionStudyPlan(section_id=section.id, study_plan_id=tech_plan_a.id,    part="A"),  # ← nuevo
+        SectionStudyPlan(section_id=section.id, study_plan_id=tech_plan_b.id,    part="B"),  # ← nuevo
+    ])
     db.add_all([
         SectionSpecialty(section_id=section.id, specialty_id=data.specialty_id_a, part="A"),
         SectionSpecialty(section_id=section.id, specialty_id=data.specialty_id_b, part="B"),
@@ -625,15 +647,24 @@ def create_section(
     if not data.course_assignments:
         raise HTTPException(400, "Debe asignar profesores a las materias")
 
-    plan_courses = db.query(StudyPlanCourse).filter(
-        StudyPlanCourse.study_plan_id == academic_plan.id
-    ).all()
+    # Validar que se cubran TODAS las materias de los tres planes
+    general_course_ids = {
+        pc.course_id for pc in db.query(StudyPlanCourse)
+        .filter(StudyPlanCourse.study_plan_id == academic_plan.id).all()
+    }
+    tech_a_course_ids = {
+        pc.course_id for pc in db.query(StudyPlanCourse)
+        .filter(StudyPlanCourse.study_plan_id == tech_plan_a.id).all()
+    }
+    tech_b_course_ids = {
+        pc.course_id for pc in db.query(StudyPlanCourse)
+        .filter(StudyPlanCourse.study_plan_id == tech_plan_b.id).all()
+    }
+    all_plan_course_ids = general_course_ids | tech_a_course_ids | tech_b_course_ids
 
-    plan_course_ids = {pc.course_id for pc in plan_courses}
     assigned_course_ids = {c.course_id for c in data.course_assignments}
-
-    if plan_course_ids != assigned_course_ids:
-        raise HTTPException(400, "Debe asignar exactamente todas las materias del plan")
+    if all_plan_course_ids != assigned_course_ids:
+        raise HTTPException(400, "Debe asignar exactamente todas las materias de los tres planes")
 
     for item in data.course_assignments:
         professor = (
@@ -643,7 +674,6 @@ def create_section(
         )
         if not professor:
             raise HTTPException(400, f"Profesor inválido para curso {item.course_id}")
-
         db.add(SectionCourse(
             section_id=section.id,
             course_id=item.course_id,
@@ -652,7 +682,6 @@ def create_section(
 
     db.commit()
     db.refresh(section)
-
     return {"id": section.id, "name": section.name, "academic_year": section.academic_year}
 
 @router.put("/sections/{section_id}")
@@ -855,6 +884,43 @@ def get_study_plan_by_year_level(
         ],
     }
 
+@router.get("/study-plans/technical/{year_level}/{specialty_id}")
+def get_technical_study_plan(
+    year_level: int,
+    specialty_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    check_permission(current_user, "manage_sections", db)
+
+    plan = db.query(StudyPlan).filter(
+        StudyPlan.year_level == year_level,
+        StudyPlan.specialty_id == specialty_id,
+    ).first()
+
+    if not plan:
+        raise HTTPException(
+            404,
+            f"No existe plan técnico para el nivel {year_level} y especialidad {specialty_id}"
+        )
+
+    courses = (
+        db.query(Course)
+        .join(StudyPlanCourse, StudyPlanCourse.course_id == Course.id)
+        .filter(StudyPlanCourse.study_plan_id == plan.id)
+        .all()
+    )
+
+    return {
+        "study_plan_id": plan.id,
+        "name": plan.name,
+        "year_level": plan.year_level,
+        "specialty_id": plan.specialty_id,
+        "courses": [
+            {"id": c.id, "name": c.name, "is_guide": getattr(c, "is_guide", False)}
+            for c in courses
+        ],
+    }
 
 # ══════════════════════════════════════════════════════════════
 # INSCRIPCIONES

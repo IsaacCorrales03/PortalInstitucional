@@ -6,6 +6,8 @@ import DashboardSidebar from "./DashboardSidebar";
 import MiPerfilView from "./MiPerfilView";
 import UsuariosView from "./UsuariosView";
 import SectionsView from "./SectionsView"
+import MiSeccionView from "./MiSeccionView";
+import MisCursosView from "./MisCursosView";
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export function getTokenPayload() {
@@ -23,8 +25,10 @@ export function getTokenPayload() {
 
 const VIEWS = {
   perfil:    MiPerfilView,
+  miseccion: MiSeccionView,
   usuarios:  UsuariosView,
-  secciones: SectionsView
+  secciones: SectionsView,
+  miscursos: MisCursosView
 };
 
 const DEFAULT_VIEW = "perfil";

@@ -143,8 +143,8 @@ const NAV_BASE = [
 ];
 
 const NAV_STUDENT = [
-  { key: "mi-seccion",    label: "Mi sección",    icon: Icon.layout },
-  { key: "mis-cursos",    label: "Mis cursos",    icon: Icon.book },
+  { key: "miseccion",    label: "Mi sección",    icon: Icon.layout },
+  { key: "miscursos",    label: "Mis cursos",    icon: Icon.book },
   { key: "mi-asistencia", label: "Mi asistencia", icon: Icon.check },
   { key: "mis-notas",     label: "Mis notas",     icon: Icon.layers },
   { key: "mis-becas",     label: "Mis becas",     icon: Icon.award },

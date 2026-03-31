@@ -101,3 +101,5 @@ export const getProfessors = () => apiFetch("/admin/professors");
 export const getProfessorsByCourse = (courseId) =>
   apiFetch(`/admin/professors/by-course/${courseId}`);
 export const getStudyPlanByYearLevel = (yearLevel) => apiFetch(`/admin/study-plans/by-year-level/${yearLevel}`);
+export const getStudyPlanBySpecialty = (yearLevel, specialtyId) =>
+  apiFetch(`/admin/study-plans/technical/${yearLevel}/${specialtyId}`);
