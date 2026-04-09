@@ -636,15 +636,7 @@ def resolver_seccion(
     print(f"  Penaliz.   : {penval}")
     print(f"{'=' * 70}")
 
-    for parte in partes:
-        print(f"\n--- Parte {parte} ---")
-        imprimir_horario(horarios[parte])
 
-    verificar_sincronizacion(horarios["A"], horarios["B"])
-    imprimir_horarios_profesores(horarios, partes, profesores, disponibilidad_prof)
-    verificar_disponibilidad(horarios, partes, profesores, disponibilidad_prof)
-    verificar_aulas(horarios, partes, aulas)
-    verificar_disponibilidad_aulas(horarios, partes, aulas)
 
     return horarios["A"], horarios["B"]
 
@@ -703,71 +695,6 @@ def _verificar_contigüidad(horario: dict) -> list[str]:
                     break
     return errores
 
-
-def imprimir_horarios_profesores(
-    horarios: dict,
-    partes: list[str],
-    profesores: dict,
-    disponibilidad_prof: dict[int, list[list[int]]],
-) -> None:
-    """Imprime el horario individual de cada profesor con indicadores de disponibilidad."""
-    asig: dict[int, dict[str, dict[int, list]]] = {}
-    for parte in partes:
-        for dia in DIAS:
-            for b in range(1, NBLOCKS + 1):
-                entry = horarios[parte][dia][b]
-                if entry is None:
-                    continue
-                pid = entry["prof_id"]
-                if pid not in asig:
-                    asig[pid] = {d: {bl: [] for bl in range(1, NBLOCKS + 1)} for d in DIAS}
-                asig[pid][dia][b].append((parte, entry["materia"], entry["aula"]))
-
-    if not asig:
-        print("\n[!] No hay asignaciones de profesores.")
-        return
-
-    col = 30
-    print(f"\n{'=' * 70}")
-    print("  HORARIOS POR PROFESOR")
-    print(f"{'=' * 70}")
-
-    for pid in sorted(asig.keys()):
-        nombre = profesores[pid]["Nombre"]
-        mapa   = disponibilidad_prof[pid]
-        total_lec = sum(
-            1
-            for dia in DIAS
-            for b in range(1, NBLOCKS + 1)
-            if asig[pid][dia][b]
-        )
-        print(f"\n  Profesor: {nombre} (ID {pid})  — {total_lec} lección(es) asignada(s)")
-        dias_disp = [DIAS[d][:3] for d in range(NDAYS) if any(mapa[d])]
-        print(f"  Disponibilidad: {', '.join(dias_disp) if dias_disp else 'ninguna'}")
-        print()
-        print(f"  {'Lec':<5}", end="")
-        for dia in DIAS:
-            print(f"{dia:<{col}}", end="")
-        print()
-        print("  " + "-" * (5 + col * NDAYS))
-
-        for b in range(1, NBLOCKS + 1):
-            print(f"  {b:<5}", end="")
-            for dia in DIAS:
-                asigs = asig[pid][dia][b]
-                if not asigs:
-                    d_idx = DIAS.index(dia)
-                    cell  = "· no disp" if mapa[d_idx][b - 1] == 0 else ""
-                else:
-                    partes_str = "+".join(p for p, _, _ in asigs)
-                    mat  = asigs[0][1]
-                    ala  = asigs[0][2]
-                    cell = f"[{partes_str}] {mat[:14]} | {ala[:10]}"
-                    if len(cell) > col - 1:
-                        cell = cell[:col - 2] + "…"
-                print(f"{cell:<{col}}", end="")
-            print()
-    print()
 
 
 def verificar_sincronizacion(horA: dict, horB: dict) -> None:
