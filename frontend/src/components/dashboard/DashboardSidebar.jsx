@@ -146,7 +146,7 @@ const NAV_STUDENT = [
   { key: "miseccion",    label: "Mi sección",    icon: Icon.layout },
   { key: "miscursos",    label: "Mis cursos",    icon: Icon.book },
   { key: "mi-asistencia", label: "Mi asistencia", icon: Icon.check },
-  { key: "mis-notas",     label: "Mis notas",     icon: Icon.layers },
+  { key: "mihorario",     label: "Mi Horario",     icon: Icon.layers },
   { key: "mis-becas",     label: "Mis becas",     icon: Icon.award },
   { key: "mis-avisos",    label: "Mis avisos",    icon: Icon.mail },
 ];

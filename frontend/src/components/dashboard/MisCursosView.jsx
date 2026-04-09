@@ -1,7 +1,5 @@
 "use client";
-
-import { useEffect } from "react";
-import { useStore } from "@/lib/store";
+import { usePreload } from "@/lib/usePreload";
 
 /* ─────────────────────────────────────────────────────────────────
    ICONS
@@ -302,20 +300,13 @@ function EmptyState() {
    MAIN VIEW
 ───────────────────────────────────────────────────────────────── */
 export default function MisCursosView() {
-  const { mycourses, ensure } = useStore();
 
-  useEffect(() => {
-    ensure("mycourses");
-  }, [ensure]);
-
-  const all       = mycourses?.data ?? [];
-  const isLoading = mycourses?.loading ?? false;
-  const error     = mycourses?.error ?? null;
+  const { data, isLoading, error } = usePreload("mycourses");
+  const all = data ?? [];
 
   // Técnicas sin specialty_id = compartidas (ej. Educación Física) → se muestran en el bloque académico
-  const academic  = all.filter(c => !c.is_technical || c.specialty_id == null);
-  const technical = all.filter(c => c.is_technical && c.specialty_id != null);
-
+  const academic  = all.filter(c => !c.is_technical || c.course_name === "Educación Física");
+  const technical = all.filter(c => c.is_technical && c.course_name !== "Educación Física");
   return (
     <>
       {/* Keyframes — inyectados una sola vez */}

@@ -103,3 +103,6 @@ export const getProfessorsByCourse = (courseId) =>
 export const getStudyPlanByYearLevel = (yearLevel) => apiFetch(`/admin/study-plans/by-year-level/${yearLevel}`);
 export const getStudyPlanBySpecialty = (yearLevel, specialtyId) =>
   apiFetch(`/admin/study-plans/technical/${yearLevel}/${specialtyId}`);
+export async function getMySchedule(sectionId) {
+  return apiFetch(`/dashboard/me/scholar_scheduale/${sectionId}`);
+}
