@@ -37,7 +37,7 @@ Sistema institucional con múltiples roles (estudiante, profesor, administrativo
 ## Fase 3: Núcleo Académico
 
 ### Horarios
-- [ ] CRUD horarios
+- [x] CRUD horarios
 - [ ] Lógica de clase actual
 
 ### Asistencia
@@ -78,7 +78,6 @@ Sistema institucional con múltiples roles (estudiante, profesor, administrativo
 ### Dashboard Estudiante
 - [ ] Ver horario
 - [ ] Ver clase actual
-- [ ] Ver asistencia mensual
 - [ ] Ver noticias
 - [ ] Ver grupos
 
@@ -184,3 +183,12 @@ Sistema institucional con múltiples roles (estudiante, profesor, administrativo
 - Mantener separación modular estricta
 - No integrar chatbot hasta tener backend estable
 - Priorizar funcionalidad sobre perfección visual
+
+
+
+# Pendientes:
+reparar el loader de apploader (se ve mal)
+añadir becas + formulario de aplicante para becas
+añadir avisos personales
+(usuario)
+comenzar con profesor +++

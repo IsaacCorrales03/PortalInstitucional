@@ -194,7 +194,7 @@ def delete_user(
     db.query(AdministrativeProfile).filter(AdministrativeProfile.user_id == user_id).delete()
     db.query(UserRole).filter(UserRole.user_id == user_id).delete()
     db.query(Enrollment).filter(Enrollment.user_id == user_id).delete()
-    db.query(Attendance).filter(Attendance.user_id == user_id).delete()
+    db.query(AttendanceRecord).filter(AttendanceRecord.user_id == user_id).delete()
     db.query(GroupMember).filter(GroupMember.user_id == user_id).delete()
     db.query(Submission).filter(Submission.user_id == user_id).delete()
     db.query(GradeReport).filter(GradeReport.student_id == user_id).delete()
@@ -1063,11 +1063,7 @@ def list_permissions(
     ]
 
 @router.post("/permissions")
-def create_permission(
-    data: PermissionCreateSchema,
-    current_user: AuthenticatedUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+def create_permission(data: PermissionCreateSchema, current_user: AuthenticatedUser = Depends(get_current_user),db: Session = Depends(get_db),):
     check_permission(current_user, "manage_permissions", db)
 
     if db.query(Permission).filter(Permission.code == data.code).first():
@@ -1196,7 +1192,6 @@ from app.utils.scheduler_generator import (
     NBLOCKS,
     DIAS,
 )
-
 
 
 @router.post("/seccion/{section_id}")

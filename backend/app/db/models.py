@@ -1,8 +1,8 @@
 from warnings import deprecated
 
 from sqlalchemy import (
-    CheckConstraint, String, Integer, ForeignKey, Date, Boolean,
-    Time, DateTime, Numeric, Text, UniqueConstraint
+    CheckConstraint, Index, String, Integer, ForeignKey, Date, Boolean,
+    Time, DateTime, Numeric, Text, UniqueConstraint, func
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import datetime
@@ -497,23 +497,43 @@ class AcademicPeriod(Base):
 # =========================
 # ATTENDANCE
 # =========================
-class Attendance(Base):
-    __tablename__ = "attendance"
+class AttendanceReport(Base):
+    __tablename__ = "attendance_reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    section_id: Mapped[int] = mapped_column(
-        ForeignKey("sections.id"), nullable=False
-    )
+    section_course_id: Mapped[int] = mapped_column(ForeignKey("section_courses.id"), nullable=False)
+    professor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    present: Mapped[bool] = mapped_column(Boolean, default=False)
-    late: Mapped[bool] = mapped_column(Boolean, default=False)
-    justification: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    recorded_by: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+    lesson_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    lesson_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime.date] = mapped_column(DateTime, default=func.now())
+
+    __table_args__ = (
+        Index("ix_ar_section_course", "section_course_id"),
+        Index("ix_ar_date",           "date"),
+        Index("ix_ar_professor",      "professor_id"),
     )
 
 
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    report_id: Mapped[int] = mapped_column(ForeignKey("attendance_reports.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    status: Mapped[str] = mapped_column(
+        Enum("presente", "ausente", "tardia", "justificado", name="attendance_status"),
+        nullable=False,
+        default="presente"
+    )
+    justification: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    recorded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    __table_args__ = (
+        Index("ix_arec_report",   "report_id"),
+        Index("ix_arec_user",     "user_id"),
+        Index("ix_arec_user_rep", "user_id", "report_id"),
+    )
 # =========================
 # GROUPS
 # =========================
