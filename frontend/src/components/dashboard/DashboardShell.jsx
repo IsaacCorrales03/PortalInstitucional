@@ -9,6 +9,7 @@ import SectionsView from "./SectionsView"
 import MiSeccionView from "./MiSeccionView";
 import MisCursosView from "./MisCursosView";
 import MiHorarioView from "./MiHorarioView";
+import MiAsistenciaView from "./MiAsistenciaView";
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export function getTokenPayload() {
@@ -30,7 +31,8 @@ const VIEWS = {
   usuarios:  UsuariosView,
   secciones: SectionsView,
   miscursos: MisCursosView,
-  mihorario: MiHorarioView
+  mihorario: MiHorarioView,
+  "mi-asistencia": MiAsistenciaView,
 };
 
 const DEFAULT_VIEW = "perfil";
@@ -182,7 +184,7 @@ export default function DashboardShell() {
     setFullName(payload.full_name ?? null);
 
     const uid = payload.sub;
-    fetch(`http://localhost:8000/admin/users/${uid}/permissions`, {
+    fetch(`http://localhost:8000/dashboard/me/permissions`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : []))

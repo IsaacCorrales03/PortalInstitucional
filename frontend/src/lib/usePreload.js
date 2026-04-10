@@ -31,16 +31,20 @@ const storeGet = (key)      => useStore.getState()[key];
 //
 // Extiende este objeto si agregás más slices al store.
 //
+ 
 const ENDPOINTS = {
   profile:     "/dashboard/",
-  mysection:   "/student/my-section",
-  mycourses:   "/student/my-courses",
+  permissions: "/dashboard/me/permissions",
+  mysection:   "/dashboard/me/section",
+  mycourses:   "/dashboard/me/courses",
+  schedule:    "/dashboard/me/schedule",
   users:       "/admin/users",
   sections:    "/admin/sections",
   courses:     "/admin/courses",
   specialties: "/admin/specialties",
-  // "schedule" requiere el section_id → se maneja por separado en useSchedule
+  attendance: "/dashboard/me/attendance",
 };
+ 
 
 async function apiFetch(path) {
   const token = localStorage.getItem("token");
@@ -56,6 +60,7 @@ async function apiFetch(path) {
   }
   return res.json();
 }
+ 
 
 // ─── usePreload ───────────────────────────────────────────────────────────────
 
@@ -63,28 +68,24 @@ async function apiFetch(path) {
  * @param {string} key - Clave del store (ej. "mycourses", "mysection")
  * @returns {{ data: any, isLoading: boolean, error: string | null, refetch: () => void }}
  */
+ 
 export function usePreload(key) {
-  // Suscribirse al slice reactivamente
-  const slot = useStore((s) => s[key] ?? null);
-
+  const slot      = useStore((s) => s[key] ?? null);
   const data      = slot?.data    ?? null;
   const isLoading = slot?.loading ?? false;
   const error     = slot?.error   ?? null;
-  const hasData   = data !== null;
-
-  // Fetch de respaldo si AppLoader no corrió
+ 
   useEffect(() => {
-    if (hasData || isLoading) return;
+    if (data !== null || isLoading) return;
     const endpoint = ENDPOINTS[key];
     if (!endpoint) return;
-
     storeSet(key, { data: null, loading: true, error: "" });
     apiFetch(endpoint)
       .then((res) => storeSet(key, { data: res, loading: false, error: "" }))
       .catch((err) => storeSet(key, { data: null, loading: false, error: err.message }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-
+ 
   function refetch() {
     const endpoint = ENDPOINTS[key];
     if (!endpoint) return;
@@ -93,10 +94,9 @@ export function usePreload(key) {
       .then((res) => storeSet(key, { data: res, loading: false, error: "" }))
       .catch((err) => storeSet(key, { data: null, loading: false, error: err.message }));
   }
-
+ 
   return { data, isLoading, error, refetch };
 }
-
 // ─── useSchedule ─────────────────────────────────────────────────────────────
 //
 // El horario necesita el section_id, así que tiene su propio hook.
@@ -106,28 +106,11 @@ export function usePreload(key) {
  * @returns {{ schedule: any, sectionName: string, isLoading: boolean, error: string | null }}
  */
 export function useSchedule() {
-  const scheduleSlot = useStore((s) => s["schedule"] ?? null);
-  const sectionSlot  = useStore((s) => s["mysection"] ?? null);
-
-  const sectionData = sectionSlot?.data ?? null;
-  const sectionId   = sectionData?.section_id ?? null;
-  const part        = sectionData?.section_part?.toUpperCase() ?? "A";
-
-  const isLoading = scheduleSlot?.loading ?? sectionSlot?.loading ?? false;
-  const error     = scheduleSlot?.error   ?? null;
-  const raw       = scheduleSlot?.data    ?? null;
-
-  useEffect(() => {
-    if (!sectionId) return;
-    if (raw !== null || scheduleSlot?.loading) return;
-
-    storeSet("schedule", { data: null, loading: true, error: "" });
-    apiFetch(`/student/schedule/${sectionId}`)
-      .then((res) => storeSet("schedule", { data: res, loading: false, error: "" }))
-      .catch((err) => storeSet("schedule", { data: null, loading: false, error: err.message }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionId]);
-
+  const { data: raw, isLoading, error } = usePreload("schedule");
+ 
+  const sectionSlot = useStore((s) => s["mysection"] ?? null);
+  const part = sectionSlot?.data?.section_part?.toUpperCase() ?? "A";
+ 
   return {
     schedule:    raw?.schedule?.[part] ?? null,
     sectionName: raw?.section_name ?? "",

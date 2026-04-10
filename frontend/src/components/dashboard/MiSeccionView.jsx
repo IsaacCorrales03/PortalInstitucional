@@ -1,8 +1,5 @@
 "use client";
-
-import { useEffect } from "react";
-import { getMySection } from "@/lib/api";
-import { useState } from "react";
+import { usePreload } from "@/lib/usePreload";
 
 // ─── Íconos ───────────────────────────────────────────────────────────────────
 
@@ -187,19 +184,9 @@ function SectionSkeleton() {
 // ─── MiSeccionView ────────────────────────────────────────────────────────────
 
 export default function MiSeccionView() {
-  const [section,  setSection]  = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const { data: section, isLoading, error } = usePreload("mysection");
 
-  useEffect(() => {
-    setLoading(true);
-    getMySection()
-      .then(setSection)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <SectionSkeleton />;
+  if (isLoading) return <SectionSkeleton />;
 
   if (error) {
     return (

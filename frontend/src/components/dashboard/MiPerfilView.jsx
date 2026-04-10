@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { usePreload } from "@/lib/usePreload";
 import { getTokenPayload } from "./DashboardShell";
 
-// ─── API helpers ──────────────────────────────────────────────────────────────
+// ─── API helper ───────────────────────────────────────────────────────────────
 
 async function apiFetch(path, options = {}) {
   const token = localStorage.getItem("token");
@@ -32,18 +33,8 @@ const ROLE_LABELS = {
 };
 
 const SHIFT_LABELS  = { diurna: "Diurna", nocturna: "Nocturna" };
-const STATUS_LABELS = {
-  activo:   "Activo",
-  inactivo: "Inactivo",
-  egresado: "Egresado",
-  retirado: "Retirado",
-};
-const STATUS_COLOR = {
-  activo:   "badge--green",
-  inactivo: "badge--gray",
-  egresado: "badge--blue",
-  retirado: "badge--orange",
-};
+const STATUS_LABELS = { activo: "Activo", inactivo: "Inactivo", egresado: "Egresado", retirado: "Retirado" };
+const STATUS_COLOR  = { activo: "badge--green", inactivo: "badge--gray", egresado: "badge--blue", retirado: "badge--orange" };
 
 function getRoleLabel(roles = []) {
   for (const key of ["superadmin", "admin", "professor", "estudiante"]) {
@@ -53,182 +44,65 @@ function getRoleLabel(roles = []) {
 }
 
 function getInitials(name = "") {
-  return (
-    name
-      .split(" ")
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
+  return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
 // ─── Validación de contraseña ─────────────────────────────────────────────────
 
 const PASSWORD_CHECKS = [
-  {
-    key: "length",
-    label: "Mínimo 8 caracteres",
-    test: (p) => p.length >= 8,
-  },
-  {
-    key: "upper",
-    label: "Una letra mayúscula (A-Z)",
-    test: (p) => /[A-Z]/.test(p),
-  },
-  {
-    key: "lower",
-    label: "Una letra minúscula (a-z)",
-    test: (p) => /[a-z]/.test(p),
-  },
-  {
-    key: "number",
-    label: "Un número (0-9)",
-    test: (p) => /[0-9]/.test(p),
-  },
-  {
-    key: "special",
-    label: "Un símbolo (!@#$%^&*…)",
-    test: (p) => /[^A-Za-z0-9]/.test(p),
-  },
+  { key: "length",  label: "Mínimo 8 caracteres",    test: (p) => p.length >= 8 },
+  { key: "upper",   label: "Una letra mayúscula (A-Z)", test: (p) => /[A-Z]/.test(p) },
+  { key: "lower",   label: "Una letra minúscula (a-z)", test: (p) => /[a-z]/.test(p) },
+  { key: "number",  label: "Un número (0-9)",           test: (p) => /[0-9]/.test(p) },
+  { key: "special", label: "Un símbolo (!@#$%^&*…)",    test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
-function getPasswordScore(password) {
-  if (!password) return 0;
-  return PASSWORD_CHECKS.filter((c) => c.test(password)).length;
-}
+function getPasswordScore(p) { return PASSWORD_CHECKS.filter((c) => c.test(p)).length; }
 
 function getPasswordStrengthLabel(score) {
   if (score <= 1) return { label: "Muy débil",  color: "var(--error)" };
   if (score === 2) return { label: "Débil",      color: "var(--error)" };
   if (score === 3) return { label: "Regular",    color: "var(--warning)" };
   if (score === 4) return { label: "Fuerte",     color: "var(--success)" };
-  return               { label: "Muy fuerte",  color: "var(--success)" };
+  return                   { label: "Muy fuerte", color: "var(--success)" };
 }
 
-function validatePassword(password) {
-  const failed = PASSWORD_CHECKS.filter((c) => !c.test(password));
-  if (failed.length === 0) return null;
-  return `Contraseña inválida: ${failed.map((c) => c.label.toLowerCase()).join(", ")}.`;
+function validatePassword(p) {
+  const failed = PASSWORD_CHECKS.filter((c) => !c.test(p));
+  return failed.length === 0 ? null : `Contraseña inválida: ${failed.map((c) => c.label.toLowerCase()).join(", ")}.`;
 }
 
 // ─── Íconos ───────────────────────────────────────────────────────────────────
 
 const Icon = {
-  mail: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-      <polyline points="22,6 12,13 2,6"/>
-    </svg>
-  ),
-  id: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2"/>
-      <line x1="6" y1="8" x2="6.01" y2="8"/>
-      <path d="M6 12h4"/><path d="M6 16h12"/>
-    </svg>
-  ),
-  lock: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-    </svg>
-  ),
-  eye: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  ),
-  eyeOff: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  ),
-  check: (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  x: (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  ),
-  sun: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  ),
-  moon: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  ),
-  monitor: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-      <line x1="8" y1="21" x2="16" y2="21"/>
-      <line x1="12" y1="17" x2="12" y2="21"/>
-    </svg>
-  ),
-  edit: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  ),
-  palette: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
-      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
-      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
-      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
-      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
-    </svg>
-  ),
+  mail: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  id:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><path d="M6 12h4"/><path d="M6 16h12"/></svg>,
+  lock: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  eye:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeOff: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  check: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  x:     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  edit:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  sun:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  moon:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+  monitor: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
 };
 
-// ─── Componente de campo de perfil ────────────────────────────────────────────
+// ─── ProfileField ─────────────────────────────────────────────────────────────
 
 function ProfileField({ label, value, mono = false }) {
   if (!value && value !== 0) return null;
   return (
     <div className="db-profile-field">
       <span className="db-profile-field-label">{label}</span>
-      <span
-        className="db-profile-field-value"
-        style={mono ? { fontFamily: "monospace", letterSpacing: "0.04em" } : {}}
-      >
+      <span className="db-profile-field-value" style={mono ? { fontFamily: "monospace", letterSpacing: "0.04em" } : {}}>
         {value}
       </span>
     </div>
   );
 }
 
-// ─── Password input con toggle ────────────────────────────────────────────────
+// ─── PasswordInput ────────────────────────────────────────────────────────────
 
 function PasswordInput({ name, value, onChange, placeholder }) {
   const [show, setShow] = useState(false);
@@ -237,22 +111,13 @@ function PasswordInput({ name, value, onChange, placeholder }) {
       <input
         className="db-input"
         type={show ? "text" : "password"}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        style={{ paddingRight: 40 }}
+        name={name} value={value} onChange={onChange}
+        placeholder={placeholder} style={{ paddingRight: 40 }}
         autoComplete="new-password"
       />
       <button
-        type="button"
-        onClick={() => setShow((s) => !s)}
-        style={{
-          position: "absolute", right: 10, top: "50%",
-          transform: "translateY(-50%)", background: "none",
-          border: "none", cursor: "pointer",
-          color: "var(--db-text-muted)", display: "flex", alignItems: "center",
-        }}
+        type="button" onClick={() => setShow((s) => !s)}
+        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--db-text-muted)", display: "flex", alignItems: "center" }}
         tabIndex={-1}
       >
         {show ? Icon.eyeOff : Icon.eye}
@@ -261,55 +126,26 @@ function PasswordInput({ name, value, onChange, placeholder }) {
   );
 }
 
-// ─── Strength indicator mejorado ──────────────────────────────────────────────
+// ─── PasswordStrength ─────────────────────────────────────────────────────────
 
 function PasswordStrength({ password }) {
   if (!password) return null;
   const score = getPasswordScore(password);
   const { label, color } = getPasswordStrengthLabel(score);
-
   return (
     <div style={{ marginTop: 8 }}>
-      {/* Barra segmentada */}
       <div style={{ display: "flex", gap: 3, marginBottom: 6, alignItems: "center" }}>
         {PASSWORD_CHECKS.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1, height: 3, borderRadius: 99,
-              background: i < score ? color : "var(--border)",
-              transition: "background 0.25s",
-            }}
-          />
+          <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: i < score ? color : "var(--border)", transition: "background 0.25s" }} />
         ))}
-        <span style={{ fontSize: 11, fontWeight: 700, color, marginLeft: 8, whiteSpace: "nowrap", minWidth: 72 }}>
-          {label}
-        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color, marginLeft: 8, whiteSpace: "nowrap", minWidth: 72 }}>{label}</span>
       </div>
-
-      {/* Lista de requisitos */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
         {PASSWORD_CHECKS.map((c) => {
           const ok = c.test(password);
           return (
-            <span
-              key={c.key}
-              style={{
-                fontSize: 11, display: "flex", alignItems: "center", gap: 5,
-                color: ok ? "var(--success)" : "var(--text-muted)",
-                transition: "color 0.2s",
-              }}
-            >
-              <span
-                style={{
-                  width: 14, height: 14, borderRadius: 3, display: "flex",
-                  alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  background: ok ? "var(--success-soft)" : "var(--bg-elevated)",
-                  border: `1px solid ${ok ? "rgba(52,211,153,0.3)" : "var(--border)"}`,
-                  color: ok ? "var(--success)" : "var(--text-subtle)",
-                  transition: "all 0.2s",
-                }}
-              >
+            <span key={c.key} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 5, color: ok ? "var(--success)" : "var(--text-muted)", transition: "color 0.2s" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: ok ? "var(--success-soft)" : "var(--bg-elevated)", border: `1px solid ${ok ? "rgba(52,211,153,0.3)" : "var(--border)"}`, color: ok ? "var(--success)" : "var(--text-subtle)", transition: "all 0.2s" }}>
                 {ok ? Icon.check : Icon.x}
               </span>
               {c.label}
@@ -321,63 +157,33 @@ function PasswordStrength({ password }) {
   );
 }
 
-// ─── Sección: cambio de contraseña ────────────────────────────────────────────
+// ─── PasswordSection ──────────────────────────────────────────────────────────
 
 const EMPTY_PASS = { current: "", next: "", confirm: "" };
 
 function PasswordSection({ userId }) {
-  const [open,    setOpen]    = useState(false);
-  const [form,    setForm]    = useState(EMPTY_PASS);
+  const [open, setOpen]     = useState(false);
+  const [form, setForm]     = useState(EMPTY_PASS);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [error, setError]   = useState(null);
   const [success, setSuccess] = useState(false);
 
-  function handleChange(e) {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
-    setError(null);
-    setSuccess(false);
-  }
+  function handleChange(e) { setForm((p) => ({ ...p, [e.target.name]: e.target.value })); setError(null); setSuccess(false); }
 
   async function handleSubmit() {
     if (!form.current) { setError("Ingresá tu contraseña actual."); return; }
     if (!form.next)    { setError("Ingresá la nueva contraseña."); return; }
-
     const pwError = validatePassword(form.next);
     if (pwError) { setError(pwError); return; }
-
-    if (form.next !== form.confirm) {
-      setError("Las contraseñas nuevas no coinciden.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
+    if (form.next !== form.confirm) { setError("Las contraseñas nuevas no coinciden."); return; }
+    setLoading(true); setError(null);
     try {
-      await apiFetch("/auth/change-password", {
-        method: "PUT",
-        body: JSON.stringify({
-          user_id:          userId,
-          current_password: form.current,
-          new_password:     form.next,
-          confirm_password: form.confirm,
-        }),
-      });
-      setSuccess(true);
-      setForm(EMPTY_PASS);
-      setOpen(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      await apiFetch("/auth/change-password", { method: "PUT", body: JSON.stringify({ user_id: userId, current_password: form.current, new_password: form.next, confirm_password: form.confirm }) });
+      setSuccess(true); setForm(EMPTY_PASS); setOpen(false);
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
   }
 
-  function handleCancel() {
-    setForm(EMPTY_PASS);
-    setError(null);
-    setOpen(false);
-  }
-
+  function handleCancel() { setForm(EMPTY_PASS); setError(null); setOpen(false); }
   const confirmMismatch = form.confirm && form.next !== form.confirm;
 
   return (
@@ -385,80 +191,32 @@ function PasswordSection({ userId }) {
       <div className="db-profile-section-header">
         <div>
           <h2 className="db-profile-section-title">Seguridad</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-            Administrá el acceso a tu cuenta
-          </p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>Administrá el acceso a tu cuenta</p>
         </div>
-        {!open && (
-          <button className="db-btn db-btn--ghost" onClick={() => setOpen(true)}>
-            {Icon.lock}
-            Cambiar contraseña
-          </button>
-        )}
+        {!open && <button className="db-btn db-btn--ghost" onClick={() => setOpen(true)}>{Icon.lock} Cambiar contraseña</button>}
       </div>
-
-      {success && (
-        <div className="db-inline-alert db-inline-alert--success">
-          Contraseña actualizada correctamente.
-        </div>
-      )}
-
+      {success && <div className="db-inline-alert db-inline-alert--success">Contraseña actualizada correctamente.</div>}
       {open && (
         <div className="db-profile-form">
-          {error && (
-            <div className="db-inline-alert db-inline-alert--error">{error}</div>
-          )}
-
+          {error && <div className="db-inline-alert db-inline-alert--error">{error}</div>}
           <div className="db-field">
             <label className="db-field-label">Contraseña actual</label>
-            <PasswordInput
-              name="current"
-              value={form.current}
-              onChange={handleChange}
-              placeholder="Tu contraseña actual"
-            />
+            <PasswordInput name="current" value={form.current} onChange={handleChange} placeholder="Tu contraseña actual" />
           </div>
-
           <div className="db-field">
             <label className="db-field-label">Nueva contraseña</label>
-            <PasswordInput
-              name="next"
-              value={form.next}
-              onChange={handleChange}
-              placeholder="Mínimo 8 caracteres"
-            />
+            <PasswordInput name="next" value={form.next} onChange={handleChange} placeholder="Mínimo 8 caracteres" />
             <PasswordStrength password={form.next} />
           </div>
-
           <div className="db-field">
             <label className="db-field-label">Confirmar nueva contraseña</label>
-            <PasswordInput
-              name="confirm"
-              value={form.confirm}
-              onChange={handleChange}
-              placeholder="Repetí la nueva contraseña"
-            />
-            {confirmMismatch && (
-              <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                {Icon.x} Las contraseñas no coinciden.
-              </p>
-            )}
-            {form.confirm && !confirmMismatch && form.next && (
-              <p style={{ fontSize: 12, color: "var(--success)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                {Icon.check} Las contraseñas coinciden.
-              </p>
-            )}
+            <PasswordInput name="confirm" value={form.confirm} onChange={handleChange} placeholder="Repetí la nueva contraseña" />
+            {confirmMismatch && <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>{Icon.x} Las contraseñas no coinciden.</p>}
+            {form.confirm && !confirmMismatch && form.next && <p style={{ fontSize: 12, color: "var(--success)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>{Icon.check} Las contraseñas coinciden.</p>}
           </div>
-
           <div className="db-profile-form-actions">
-            <button className="db-btn db-btn--ghost" onClick={handleCancel} disabled={loading}>
-              Cancelar
-            </button>
-            <button
-              className="db-btn db-btn--primary"
-              onClick={handleSubmit}
-              disabled={loading || confirmMismatch || !form.confirm}
-            >
+            <button className="db-btn db-btn--ghost" onClick={handleCancel} disabled={loading}>Cancelar</button>
+            <button className="db-btn db-btn--primary" onClick={handleSubmit} disabled={loading || confirmMismatch || !form.confirm}>
               {loading ? "Guardando…" : "Guardar contraseña"}
             </button>
           </div>
@@ -468,62 +226,35 @@ function PasswordSection({ userId }) {
   );
 }
 
-// ─── Sección: cambio de email ─────────────────────────────────────────────────
+// ─── EmailSection ─────────────────────────────────────────────────────────────
 
 const EMPTY_EMAIL = { newEmail: "", confirmEmail: "", password: "" };
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 function EmailSection({ userId, currentEmail }) {
-  const [open,    setOpen]    = useState(false);
-  const [form,    setForm]    = useState(EMPTY_EMAIL);
+  const [open, setOpen]     = useState(false);
+  const [form, setForm]     = useState(EMPTY_EMAIL);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [error, setError]   = useState(null);
   const [success, setSuccess] = useState(false);
 
-  function handleChange(e) {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
-    setError(null);
-    setSuccess(false);
-  }
+  function handleChange(e) { setForm((p) => ({ ...p, [e.target.name]: e.target.value })); setError(null); setSuccess(false); }
 
   async function handleSubmit() {
-    if (!form.newEmail)    { setError("Ingresá el nuevo email."); return; }
-    if (!isValidEmail(form.newEmail)) { setError("El email no tiene un formato válido."); return; }
-    if (form.newEmail === currentEmail) { setError("El nuevo email es igual al actual."); return; }
-    if (!form.confirmEmail) { setError("Confirmá el nuevo email."); return; }
-    if (form.newEmail !== form.confirmEmail) { setError("Los emails no coinciden."); return; }
-    if (!form.password)    { setError("Ingresá tu contraseña para confirmar."); return; }
-
-    setLoading(true);
-    setError(null);
+    if (!form.newEmail)                          { setError("Ingresá el nuevo email."); return; }
+    if (!isValidEmail(form.newEmail))            { setError("El email no tiene un formato válido."); return; }
+    if (form.newEmail === currentEmail)          { setError("El nuevo email es igual al actual."); return; }
+    if (!form.confirmEmail)                      { setError("Confirmá el nuevo email."); return; }
+    if (form.newEmail !== form.confirmEmail)     { setError("Los emails no coinciden."); return; }
+    if (!form.password)                          { setError("Ingresá tu contraseña para confirmar."); return; }
+    setLoading(true); setError(null);
     try {
-      await apiFetch("/auth/change-email", {
-        method: "PUT",
-        body: JSON.stringify({
-          user_id:       userId,
-          new_email:     form.newEmail,
-          password:      form.password,
-        }),
-      });
-      setSuccess(true);
-      setForm(EMPTY_EMAIL);
-      setOpen(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      await apiFetch("/auth/change-email", { method: "PUT", body: JSON.stringify({ user_id: userId, new_email: form.newEmail, password: form.password }) });
+      setSuccess(true); setForm(EMPTY_EMAIL); setOpen(false);
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
   }
 
-  function handleCancel() {
-    setForm(EMPTY_EMAIL);
-    setError(null);
-    setOpen(false);
-  }
-
+  function handleCancel() { setForm(EMPTY_EMAIL); setError(null); setOpen(false); }
   const emailMismatch = form.confirmEmail && form.newEmail !== form.confirmEmail;
 
   return (
@@ -531,90 +262,32 @@ function EmailSection({ userId, currentEmail }) {
       <div className="db-profile-section-header">
         <div>
           <h2 className="db-profile-section-title">Correo electrónico</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-            {currentEmail ? `Actual: ${currentEmail}` : "Actualizá tu dirección de correo"}
-          </p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>{currentEmail ? `Actual: ${currentEmail}` : "Actualizá tu dirección de correo"}</p>
         </div>
-        {!open && (
-          <button className="db-btn db-btn--ghost" onClick={() => setOpen(true)}>
-            {Icon.edit}
-            Cambiar email
-          </button>
-        )}
+        {!open && <button className="db-btn db-btn--ghost" onClick={() => setOpen(true)}>{Icon.edit} Cambiar email</button>}
       </div>
-
-      {success && (
-        <div className="db-inline-alert db-inline-alert--success">
-          Email actualizado correctamente.
-        </div>
-      )}
-
+      {success && <div className="db-inline-alert db-inline-alert--success">Email actualizado correctamente.</div>}
       {open && (
         <div className="db-profile-form">
-          {error && (
-            <div className="db-inline-alert db-inline-alert--error">{error}</div>
-          )}
-
+          {error && <div className="db-inline-alert db-inline-alert--error">{error}</div>}
           <div className="db-field">
             <label className="db-field-label">Nuevo email</label>
-            <input
-              className="db-input"
-              type="email"
-              name="newEmail"
-              value={form.newEmail}
-              onChange={handleChange}
-              placeholder="nuevo@correo.com"
-              autoComplete="email"
-            />
-            {form.newEmail && !isValidEmail(form.newEmail) && (
-              <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4 }}>
-                Formato de email inválido.
-              </p>
-            )}
+            <input className="db-input" type="email" name="newEmail" value={form.newEmail} onChange={handleChange} placeholder="nuevo@correo.com" autoComplete="email" />
+            {form.newEmail && !isValidEmail(form.newEmail) && <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4 }}>Formato de email inválido.</p>}
           </div>
-
           <div className="db-field">
             <label className="db-field-label">Confirmar nuevo email</label>
-            <input
-              className="db-input"
-              type="email"
-              name="confirmEmail"
-              value={form.confirmEmail}
-              onChange={handleChange}
-              placeholder="Repetí el nuevo email"
-              autoComplete="off"
-            />
-            {emailMismatch && (
-              <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                {Icon.x} Los emails no coinciden.
-              </p>
-            )}
-            {form.confirmEmail && !emailMismatch && isValidEmail(form.newEmail) && (
-              <p style={{ fontSize: 12, color: "var(--success)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                {Icon.check} Los emails coinciden.
-              </p>
-            )}
+            <input className="db-input" type="email" name="confirmEmail" value={form.confirmEmail} onChange={handleChange} placeholder="Repetí el nuevo email" autoComplete="off" />
+            {emailMismatch && <p style={{ fontSize: 12, color: "var(--error)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>{Icon.x} Los emails no coinciden.</p>}
+            {form.confirmEmail && !emailMismatch && isValidEmail(form.newEmail) && <p style={{ fontSize: 12, color: "var(--success)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>{Icon.check} Los emails coinciden.</p>}
           </div>
-
           <div className="db-field">
             <label className="db-field-label">Contraseña actual (para confirmar)</label>
-            <PasswordInput
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Tu contraseña actual"
-            />
+            <PasswordInput name="password" value={form.password} onChange={handleChange} placeholder="Tu contraseña actual" />
           </div>
-
           <div className="db-profile-form-actions">
-            <button className="db-btn db-btn--ghost" onClick={handleCancel} disabled={loading}>
-              Cancelar
-            </button>
-            <button
-              className="db-btn db-btn--primary"
-              onClick={handleSubmit}
-              disabled={loading || emailMismatch || !form.confirmEmail}
-            >
+            <button className="db-btn db-btn--ghost" onClick={handleCancel} disabled={loading}>Cancelar</button>
+            <button className="db-btn db-btn--primary" onClick={handleSubmit} disabled={loading || emailMismatch || !form.confirmEmail}>
               {loading ? "Guardando…" : "Guardar email"}
             </button>
           </div>
@@ -624,60 +297,32 @@ function EmailSection({ userId, currentEmail }) {
   );
 }
 
-// ─── Sección: tema ────────────────────────────────────────────────────────────
+// ─── ThemeSection ─────────────────────────────────────────────────────────────
 
 const THEMES = [
-  { key: "dark",   label: "Oscuro",   icon: Icon.moon },
-  { key: "light",  label: "Claro",    icon: Icon.sun },
-  { key: "system", label: "Sistema",  icon: Icon.monitor },
+  { key: "dark",   label: "Oscuro",  icon: Icon.moon },
+  { key: "light",  label: "Claro",   icon: Icon.sun },
+  { key: "system", label: "Sistema", icon: Icon.monitor },
 ];
 
 function ThemeSection() {
   const [selected, setSelected] = useState("dark");
-
-  // Placeholder: aquí iría la lógica real de tema
-  function handleSelect(key) {
-    setSelected(key);
-    // TODO: aplicar tema
-  }
-
   return (
     <div className="db-profile-section">
       <div className="db-profile-section-header">
         <div>
           <h2 className="db-profile-section-title">Apariencia</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-            Elegí el tema de la interfaz
-          </p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>Elegí el tema de la interfaz</p>
         </div>
-        <span
-          style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
-            textTransform: "uppercase", color: "var(--text-subtle)",
-            padding: "3px 8px", borderRadius: 4,
-            border: "1px dashed var(--border)",
-          }}
-        >
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-subtle)", padding: "3px 8px", borderRadius: 4, border: "1px dashed var(--border)" }}>
           Próximamente
         </span>
       </div>
-
       <div style={{ display: "flex", gap: 10 }}>
         {THEMES.map((t) => {
           const active = selected === t.key;
           return (
-            <button
-              key={t.key}
-              onClick={() => handleSelect(t.key)}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                gap: 8, padding: "12px 18px", borderRadius: "var(--radius-md)",
-                border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                background: active ? "var(--accent-soft)" : "var(--bg-elevated)",
-                cursor: "pointer", color: active ? "var(--accent)" : "var(--text-muted)",
-                transition: "all 0.18s", fontFamily: "inherit",
-              }}
-            >
+            <button key={t.key} onClick={() => setSelected(t.key)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: "var(--radius-md)", border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`, background: active ? "var(--accent-soft)" : "var(--bg-elevated)", cursor: "pointer", color: active ? "var(--accent)" : "var(--text-muted)", transition: "all 0.18s", fontFamily: "inherit" }}>
               {t.icon}
               <span style={{ fontSize: 12, fontWeight: 600 }}>{t.label}</span>
             </button>
@@ -691,27 +336,13 @@ function ThemeSection() {
 // ─── MiPerfilView ─────────────────────────────────────────────────────────────
 
 export default function MiPerfilView() {
-  const [roles,    setRoles]    = useState([]);
-  const [userId,   setUserId]   = useState(null);
-  const [profile,  setProfile]  = useState(null);
-  const [fetching, setFetching] = useState(false);
-  const [fetchErr, setFetchErr] = useState(null);
+  // Datos del token — sincrónicos, no necesitan fetch
+  const payload  = getTokenPayload();
+  const roles    = payload?.roles   ?? [];
+  const userId   = payload?.sub ? Number(payload.sub) : null;
 
-  useEffect(() => {
-    const payload = getTokenPayload();
-    if (!payload) return;
-    setRoles(payload.roles ?? []);
-    setUserId(payload.sub ? Number(payload.sub) : null);
-  }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-    setFetching(true);
-    apiFetch("/dashboard/")
-      .then(setProfile)
-      .catch((err) => setFetchErr(err.message))
-      .finally(() => setFetching(false));
-  }, [userId]);
+  // Perfil pre-cargado por AppLoader en la clave "profile"
+  const { data: profile, isLoading, error } = usePreload("profile");
 
   const roleLabel   = getRoleLabel(roles);
   const isStudent   = roles.includes("estudiante");
@@ -720,34 +351,28 @@ export default function MiPerfilView() {
 
   return (
     <div className="db-view">
+
       {/* ── Tarjeta de identidad ── */}
       <div className="db-profile-card">
-        <div
-          className="db-profile-avatar"
-          style={{ width: 72, height: 72, fontSize: 24, fontWeight: 700, color: "white" }}
-        >
+        <div className="db-profile-avatar" style={{ width: 72, height: 72, fontSize: 24, fontWeight: 700, color: "white" }}>
           {initials}
         </div>
 
         <div className="db-profile-info">
-          {fetching ? (
+          {isLoading ? (
             <span className="db-spinner" style={{ width: 20, height: 20 }} />
-          ) : fetchErr ? (
-            <span style={{ fontSize: 13, color: "var(--error)" }}>{fetchErr}</span>
+          ) : error ? (
+            <span style={{ fontSize: 13, color: "var(--error)" }}>{error}</span>
           ) : (
             <>
-              {displayName && (
-                <div className="db-profile-name">{displayName}</div>
-              )}
+              {displayName && <div className="db-profile-name">{displayName}</div>}
               <div className="db-profile-role">{roleLabel}</div>
               {profile?.email && (
                 <div className="db-profile-meta" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   {Icon.mail} {profile.email}
                 </div>
               )}
-              {profile?.phone && (
-                <div className="db-profile-meta">{profile.phone}</div>
-              )}
+              {profile?.phone && <div className="db-profile-meta">{profile.phone}</div>}
               {userId && (
                 <div className="db-profile-id" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   {Icon.id} ID #{userId}
@@ -758,15 +383,13 @@ export default function MiPerfilView() {
         </div>
       </div>
 
-      {/* ── Datos académicos (solo estudiante) ── */}
+      {/* ── Datos académicos ── */}
       {isStudent && profile?.profile && (
         <div className="db-profile-section">
           <div className="db-profile-section-header">
             <div>
               <h2 className="db-profile-section-title">Datos académicos</h2>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-                Información de tu matrícula
-              </p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>Información de tu matrícula</p>
             </div>
             {profile.profile.status && (
               <span className={`db-badge ${STATUS_COLOR[profile.profile.status] ?? "badge--gray"}`}>
@@ -774,7 +397,6 @@ export default function MiPerfilView() {
               </span>
             )}
           </div>
-
           <div className="db-profile-fields">
             <ProfileField label="Código estudiantil" value={profile.profile.student_code} mono />
             <ProfileField label="Especialidad" value={profile.profile.specialty_name} />
@@ -783,27 +405,16 @@ export default function MiPerfilView() {
             <ProfileField label="Sección" value={profile.profile.section_name} />
             <ProfileField
               label="Matriculado desde"
-              value={
-                profile.profile.enrolled_since
-                  ? new Date(profile.profile.enrolled_since).toLocaleDateString("es-CR", {
-                      year: "numeric", month: "long", day: "numeric",
-                    })
-                  : null
-              }
+              value={profile.profile.enrolled_since
+                ? new Date(profile.profile.enrolled_since).toLocaleDateString("es-CR", { year: "numeric", month: "long", day: "numeric" })
+                : null}
             />
           </div>
         </div>
       )}
 
-      {/* ── Correo electrónico ── */}
-      {userId && (
-        <EmailSection userId={userId} currentEmail={profile?.email ?? null} />
-      )}
-
-      {/* ── Seguridad ── */}
+      {userId && <EmailSection userId={userId} currentEmail={profile?.email ?? null} />}
       {userId && <PasswordSection userId={userId} />}
-
-      {/* ── Apariencia ── */}
       <ThemeSection />
     </div>
   );

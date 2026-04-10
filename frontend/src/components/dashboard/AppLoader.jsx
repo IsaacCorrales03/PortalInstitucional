@@ -73,8 +73,13 @@ function buildTasks(roles = [], perms = [], userId = null) {
       key:   "permissions",
       label: "Permisos",
       fetch: () =>
-        apiFetch(`/admin/users/${userId}/permissions`)
+        apiFetch("/dashboard/me/permissions")
           .then((data) => data.map((p) => p.code)),
+    },
+    {
+      key:   "attendance",
+      label: "Asistencia",
+      fetch: () => apiFetch("/dashboard/me/attendance"),
     },
 
     // ── Estudiante ─────────────────────────────────────────────────────────
@@ -89,6 +94,11 @@ function buildTasks(roles = [], perms = [], userId = null) {
             key:   "mycourses",
             label: "Mis materias",
             fetch: () => apiFetch("/dashboard/me/courses"),
+          },
+          {
+            key:   "schedule",
+            label: "Horario semanal",
+            fetch: () => apiFetch("/dashboard/me/schedule"),
           },
         ]
       : []),
@@ -219,7 +229,7 @@ export default function AppLoader() {
           // schedule no está en el store base → lo seteamos igual, Zustand lo acepta
           storeSet("schedule", { data: null, loading: true, error: "" });
           try {
-            const res = await apiFetch(`/dashboard/me/scholar_scheduale/${sectionData.section_id}`);
+            const res = await apiFetch(`/student/schedule/${sectionData.section_id}`);
             storeSet("schedule", { data: res, loading: false, error: "" });
           } catch (err) {
             storeSet("schedule", { data: null, loading: false, error: err.message });
