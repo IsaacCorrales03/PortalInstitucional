@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { useSchedule } from "@/lib/usePreload";
+import { useState, useEffect, useRef } from "react";
 
-/* ─── CONSTANTS ──────────────────────────────────────────────────── */
+/* --- CONSTANTS --- */
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 const LESSON_TIME = {
-  "1":  { start: [7, 0],   end: [7, 40] },
-  "2":  { start: [7, 40],  end: [8, 20] },
-  "3":  { start: [8, 20],  end: [9, 0] },
-  "4":  { start: [9, 20],  end: [10, 0] },
+  "1":  { start: [7, 0],   end: [7, 40]  },
+  "2":  { start: [7, 40],  end: [8, 20]  },
+  "3":  { start: [8, 20],  end: [9, 0]   },
+  "4":  { start: [9, 20],  end: [10, 0]  },
   "5":  { start: [10, 0],  end: [10, 40] },
   "6":  { start: [10, 40], end: [11, 20] },
   "7":  { start: [12, 10], end: [12, 50] },
@@ -23,8 +23,7 @@ const LESSON_TIME = {
 
 const DAY_JS = { Lunes: 1, Martes: 2, "Miércoles": 3, Jueves: 4, Viernes: 5 };
 
-const fmt = (h, m) =>
-  `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+const fmt = (h, m) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
 function lessonTime(key) {
   const t = LESSON_TIME[key];
@@ -66,14 +65,12 @@ function mergeBlocks(dayData) {
       if (prevEnd !== nextStart) break;
       span++;
     }
-    const firstKey = key;
-    const lastKey  = keys[i + span - 1];
     blocks.push({
-      lessons: keys.slice(i, i + span),
-      firstLesson: firstKey,
-      lastLesson: lastKey,
-      start: lessonTime(firstKey).start,
-      end:   lessonTime(lastKey).end,
+      lessons:     keys.slice(i, i + span),
+      firstLesson: key,
+      lastLesson:  keys[i + span - 1],
+      start:       lessonTime(key).start,
+      end:         lessonTime(keys[i + span - 1]).end,
       span,
       ...cell,
     });
@@ -83,125 +80,289 @@ function mergeBlocks(dayData) {
 }
 
 /* ─── ICONS ──────────────────────────────────────────────────────── */
-function IcoBook() {
-  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>;
-}
-function IcoWrench() {
-  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
-}
-function IcoUser() {
-  return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg>;
-}
-function IcoDoor() {
-  return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/></svg>;
-}
-function IcoChevron({ up }) {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: up ? "rotate(180deg)" : "none", transition: "transform .2s" }}><polyline points="6 9 12 15 18 9"/></svg>;
-}
-function IcoCal() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;
-}
+function IcoBook()    { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>; }
+function IcoWrench()  { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>; }
+function IcoUser()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg>; }
+function IcoDoor()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/></svg>; }
+function IcoCal()     { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
+function IcoX()       { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
+function IcoClock()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>; }
 
-/* ─── LESSON BLOCK CARD ──────────────────────────────────────────── */
-function LessonCard({ block, isCurrentDay, currentLesson }) {
-  const isTech   = block.es_tecnica;
-  const isActive = isCurrentDay && currentLesson !== null && block.lessons.includes(currentLesson);
-
-  const accent     = isTech ? "#6382ff" : "#4ade80";
-  const accentRgb  = isTech ? "99,130,255" : "74,222,128";
-  const bg         = isActive
-    ? (isTech ? "rgba(99,130,255,.13)" : "rgba(74,222,128,.11)")
-    : (isTech ? "rgba(99,130,255,.055)" : "rgba(74,222,128,.05)");
-  const border     = isActive ? accent : (isTech ? "rgba(99,130,255,.22)" : "rgba(74,222,128,.2)");
+/* ─── DETAIL MODAL ───────────────────────────────────────────────── */
+function DetailModal({ block, onClose }) {
+  const isTech     = block.es_tecnica;
+  const accent     = isTech ? "var(--accent2)"     : "var(--accent)";
+  const accentSoft = isTech ? "var(--accent2-soft)" : "var(--accent-soft)";
 
   const lessonLabel = block.span === 1
-    ? `lección ${block.firstLesson}`
-    : `lecciones ${block.firstLesson}–${block.lastLesson}`;
+    ? `Lección ${block.firstLesson}`
+    : `Lecciones ${block.firstLesson} – ${block.lastLesson}`;
 
   return (
-    <div style={{
-      display: "flex",
-      borderRadius: 10,
-      overflow: "hidden",
-      border: `1px solid ${border}`,
-      background: bg,
-      boxShadow: isActive ? `0 0 0 2.5px rgba(${accentRgb},.18)` : "none",
-      position: "relative",
-      animation: "fadeUp .22s ease both",
-    }}>
-      {/* left bar */}
-      <div style={{
-        width: 4,
-        flexShrink: 0,
-        background: isTech
-          ? "linear-gradient(180deg,#6382ff,#a78bfa)"
-          : "linear-gradient(180deg,#4ade80,#34d399)",
-        opacity: isActive ? 1 : .55,
-      }} />
+    /* backdrop */
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 999,
+        background: "rgba(0,0,0,.55)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+        animation: "fadeIn .15s ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 420,
+          borderRadius: "var(--radius-lg)",
+          background: "var(--bg-surface)",
+          border: `1px solid ${accent}`,
+          overflow: "hidden",
+          animation: "slideUp .18s ease",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        {/* top accent bar */}
+        <div style={{ height: 4, background: accent }} />
 
-      <div style={{ flex: 1, padding: "11px 14px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
-        {/* time row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: isActive ? accent : "var(--text-subtle)", fontVariantNumeric: "tabular-nums" }}>
-            {block.start} – {block.end}
-            <span style={{ fontWeight: 500, color: "var(--text-muted, rgba(255,255,255,.28))", marginLeft: 5 }}>
-              · {lessonLabel}
-            </span>
-          </span>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            fontSize: 9.5, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase",
-            color: accent,
-            background: isTech ? "rgba(99,130,255,.1)" : "rgba(74,222,128,.09)",
-            border: `1px solid ${isTech ? "rgba(99,130,255,.2)" : "rgba(74,222,128,.2)"}`,
-            padding: "2px 7px 2px 6px", borderRadius: 5,
-          }}>
-            {isTech ? <IcoWrench /> : <IcoBook />}
-            {isTech ? "Técnica" : "Académica"}
-          </span>
+        {/* header */}
+        <div style={{ padding: "20px 22px 16px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              {/* tipo badge */}
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase",
+                color: accent, background: accentSoft,
+                border: `1px solid ${accent}`,
+                padding: "3px 9px", borderRadius: "var(--radius-sm)",
+                marginBottom: 10,
+              }}>
+                {isTech ? <IcoWrench /> : <IcoBook />}
+                {isTech ? "Técnica" : "Académica"}
+              </span>
+              {/* nombre materia */}
+              <div style={{
+                fontSize: 20, fontWeight: 800,
+                color: "var(--text)",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "-.02em",
+                lineHeight: 1.2,
+              }}>
+                {block.materia}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: "var(--bg-elevated)", border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)", cursor: "pointer",
+                color: "var(--text-muted)", display: "flex", alignItems: "center",
+                justifyContent: "center", width: 30, height: 30, flexShrink: 0,
+              }}
+            >
+              <IcoX />
+            </button>
+          </div>
         </div>
 
-        {/* subject */}
-        <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-.012em", lineHeight: 1.25 }}>
-          {block.materia}
-        </div>
-
-        {/* meta */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-subtle)", fontWeight: 500 }}>
-            <span style={{ color: accent, opacity: .7 }}><IcoUser /></span>
-            {block.profesor}
-          </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-subtle)", fontWeight: 500 }}>
-            <span style={{ color: accent, opacity: .7 }}><IcoDoor /></span>
-            {block.aula}
-          </span>
+        {/* detail rows */}
+        <div style={{ padding: "16px 22px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {[
+            { icon: <IcoClock />, label: "Horario", value: `${block.start} – ${block.end}` },
+            // en DetailModal, cambiá la row de lecciones:
+            { icon: <IcoClock />, label: "Duración", value: `${block.span} lección${block.span === 1 ? "" : "es"} · ${block.span * 40} min` },
+            { icon: <IcoUser />,  label: "Profesor",  value: block.profesor },
+            { icon: <IcoDoor />,  label: "Aula",      value: block.aula },
+          ].map(({ icon, label, value }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: "var(--radius-sm)",
+                background: accentSoft,
+                border: `1px solid var(--border)`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: accent, flexShrink: 0,
+              }}>
+                {icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 1 }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
+                  {value}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {/* live dot */}
-      {isActive && (
-        <div style={{
-          position: "absolute", top: 10, right: 10,
-          width: 7, height: 7, borderRadius: "50%",
-          background: accent,
-          boxShadow: `0 0 0 3px rgba(${accentRgb},.22)`,
-        }} />
-      )}
     </div>
   );
 }
 
-/* ─── DAY PANEL ──────────────────────────────────────────────────── */
-function DayPanel({ day, dayData, currentDay, currentLesson }) {
+/* ─── LESSON CARD ────────────────────────────────────────────────── */
+function LessonCard({ block, isCurrentDay, currentLesson, onClick }) {
+  const isTech     = block.es_tecnica;
+  const isActive   = isCurrentDay && currentLesson !== null && block.lessons.includes(currentLesson);
+  const accent     = isTech ? "var(--accent2)"      : "var(--accent)";
+  const accentSoft = isTech ? "var(--accent2-soft)"  : "var(--accent-soft)";
+
+  return (
+    <button
+      onClick={onClick}
+      className="lesson-card"
+      style={{
+        width: "100%", textAlign: "left",
+        display: "flex", alignItems: "stretch",
+        borderRadius: "var(--radius-md)",
+        overflow: "hidden",
+        border: `1px solid ${isActive ? accent : "var(--border)"}`,
+        background: isActive ? accentSoft : "var(--bg-elevated)",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        animation: "fadeUp .2s ease both",
+        transition: "border-color .15s, background .15s, box-shadow .15s, transform .15s",
+        padding: 0,
+        boxShadow: isActive
+          ? `var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.05)`
+          : "var(--shadow-sm)",
+      }}
+    >
+      {/* franja izquierda */}
+      <div style={{
+        width: 4, flexShrink: 0,
+        background: accent,
+        opacity: isActive ? 1 : 0.45,
+        transition: "opacity .15s",
+      }} />
+
+      {/* hora */}
+      <div style={{
+        width: 66, flexShrink: 0,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "16px 0",
+        borderRight: "1px solid var(--border)",
+        gap: 2,
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: isActive ? accent : "var(--text)", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+          {block.start}
+        </span>
+        <span style={{ fontSize: 10, color: "var(--text-subtle)", lineHeight: 1, margin: "1px 0" }}>—</span>
+        <span style={{ fontSize: 14, fontWeight: 800, color: isActive ? accent : "var(--text-muted)", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+          {block.end}
+        </span>
+      </div>
+
+      {/* info principal */}
+      <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 5, minWidth: 0 }}>
+        {/* materia */}
+        <div style={{
+          fontSize: 16, fontWeight: 800,
+          color: "var(--text)",
+          letterSpacing: "-.015em",
+          lineHeight: 1.2,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {block.materia}
+        </div>
+
+        {/* profesor */}
+        <div style={{
+          fontSize: 13, fontWeight: 500,
+          color: "var(--text-muted)",
+          display: "flex", alignItems: "center", gap: 5,
+        }}>
+          <span style={{ color: accent, opacity: .7, flexShrink: 0 }}><IcoUser /></span>
+          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {block.profesor}
+          </span>
+        </div>
+
+        {/* info / ahora — debajo del profe */}
+        {isActive ? (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 10.5, fontWeight: 800, color: accent,
+            width: "fit-content",
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: accent, display: "inline-block",
+              animation: "pulse 1.4s ease-in-out infinite",
+            }} />
+            En curso ahora
+          </span>
+        ) : (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 10.5, fontWeight: 600,
+            color: "var(--text-subtle)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            padding: "3px 8px",
+            background: "var(--bg-surface)",
+            width: "fit-content",
+          }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Ver detalles
+          </span>
+        )}
+      </div>
+
+      {/* derecha: solo badge tipo */}
+      <div style={{
+        padding: "14px 14px 14px 0",
+        display: "flex", flexDirection: "column",
+        alignItems: "flex-end", justifyContent: "flex-start",
+        flexShrink: 0,
+      }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 4,
+          fontSize: 9.5, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase",
+          color: accent, background: accentSoft,
+          border: `1px solid ${accent}`,
+          padding: "3px 7px", borderRadius: "var(--radius-sm)",
+        }}>
+          {isTech ? <IcoWrench /> : <IcoBook />}
+          {isTech ? "Téc." : "Acad."}
+        </span>
+      </div>
+    </button>
+  );
+}
+/* ─── DAY CONTENT ────────────────────────────────────────────────── */
+function DayContent({ day, dayData, currentDay, currentLesson }) {
+  const [selected, setSelected] = useState(null);
   const blocks  = mergeBlocks(dayData);
   const isToday = day === currentDay;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {selected && (
+        <DetailModal block={selected} onClose={() => setSelected(null)} />
+      )}
+
       {blocks.length === 0 ? (
-        <div style={{ padding: "18px 0", textAlign: "center", fontSize: 12.5, color: "var(--text-muted, rgba(255,255,255,.25))", fontStyle: "italic" }}>
-          Sin lecciones
+        <div style={{
+          padding: "48px", textAlign: "center",
+
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "var(--radius-md)",
+            background: "var(--bg-elevated)", border: "1px solid var(--border)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text-subtle)",
+          }}>
+            <IcoCal />
+          </div>
+          <span style={{ fontSize: 13, color: "var(--text-subtle)", fontStyle: "italic" }}>
+            {isToday ? "Hoy no tenés lecciones 🎉" : "Sin lecciones este día"}
+          </span>
         </div>
       ) : (
         blocks.map((block, i) => (
@@ -210,6 +371,7 @@ function DayPanel({ day, dayData, currentDay, currentLesson }) {
             block={block}
             isCurrentDay={isToday}
             currentLesson={currentLesson}
+            onClick={() => setSelected(block)}
           />
         ))
       )}
@@ -217,81 +379,128 @@ function DayPanel({ day, dayData, currentDay, currentLesson }) {
   );
 }
 
-/* ─── DAY ACCORDION ROW ──────────────────────────────────────────── */
-function DayRow({ day, dayData, currentDay, currentLesson, defaultOpen }) {
-  const [open, setOpen]  = useState(defaultOpen);
-  const blocks           = mergeBlocks(dayData);
-  const isToday          = day === currentDay;
-  const count            = blocks.length;
+/* ─── TABS ───────────────────────────────────────────────────────── */
+function DayTabs({ days, activeDay, onSelect, currentDay, schedule }) {
+  const scrollRef = useRef(null);
+  const [canLeft, setCanLeft]   = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  function checkScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // espera a que el layout esté listo
+    const ro = new ResizeObserver(() => checkScroll());
+    ro.observe(el);
+
+    el.addEventListener("scroll", checkScroll);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", checkScroll);
+    };
+  }, []);
+
+  function nudge(dir) {
+    scrollRef.current?.scrollBy({ left: dir * 120, behavior: "smooth" });
+  }
+
+  const ArrowBtn = ({ dir, visible }) => (
+    <button
+      onClick={() => nudge(dir)}
+      style={{
+        position: "absolute", top: "50%", transform: "translateY(-50%)",
+        [dir === -1 ? "left" : "right"]: 0,
+        zIndex: 2,
+        width: 28, height: 28,
+        borderRadius: "50%",
+        border: "1px solid var(--border)",
+        background: "var(--bg-surface)",
+        color: "var(--text-muted)",
+        cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? "auto" : "none",
+        transition: "opacity .2s",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points={dir === -1 ? "15 18 9 12 15 6" : "9 6 15 12 9 18"} />
+      </svg>
+    </button>
+  );
 
   return (
-    <div style={{
-      borderRadius: 12,
-      border: isToday
-        ? "1px solid rgba(99,130,255,.35)"
-        : "1px solid var(--border, rgba(255,255,255,.09))",
-      overflow: "hidden",
-      background: isToday ? "rgba(99,130,255,.04)" : "var(--bg-elevated, rgba(255,255,255,.03))",
-    }}>
-      {/* header */}
-      <button
-        onClick={() => setOpen(o => !o)}
+    <div style={{ position: "relative", borderBottom: "1px solid var(--border)" }}>
+      {/* fade izquierda */}
+      {canLeft && (
+        <div style={{
+          position: "absolute", left: 28, top: 0, bottom: 0, width: 24, zIndex: 1,
+          background: "linear-gradient(90deg, var(--bg-surface), transparent)",
+          pointerEvents: "none",
+        }} />
+      )}
+      {/* fade derecha */}
+      {canRight && (
+        <div style={{
+          position: "absolute", right: 28, top: 0, bottom: 0, width: 24, zIndex: 1,
+          background: "linear-gradient(270deg, var(--bg-surface), transparent)",
+          pointerEvents: "none",
+        }} />
+      )}
+
+      <ArrowBtn dir={-1} visible={canLeft} />
+      <ArrowBtn dir={1}  visible={canRight} />
+
+      <div
+        ref={scrollRef}
         style={{
-          width: "100%", display: "flex", alignItems: "center",
-          padding: "13px 16px", gap: 10,
-          background: "none", border: "none", cursor: "pointer",
-          fontFamily: "inherit",
+          display: "flex", gap: 4,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+          paddingBottom: 0,
+          paddingLeft: canLeft ? 32 : 0,
+          paddingRight: canRight ? 32 : 0,
+          transition: "padding .2s",
         }}
       >
-        {/* today indicator bar */}
-        <div style={{
-          width: 3, height: 18, borderRadius: 2, flexShrink: 0,
-          background: isToday ? "#6382ff" : "var(--border-light, rgba(255,255,255,.12))",
-        }} />
+        {days.map(day => {
+          const isActive = day === activeDay;
+          const isToday  = day === currentDay;
 
-        <span style={{ flex: 1, textAlign: "left", fontSize: 13.5, fontWeight: isToday ? 800 : 600, color: isToday ? "#6382ff" : "var(--text-subtle)", letterSpacing: "-.01em" }}>
-          {day}
-          {isToday && (
-            <span style={{
-              marginLeft: 8, fontSize: 9, fontWeight: 800, letterSpacing: ".08em",
-              textTransform: "uppercase", verticalAlign: "middle",
-              color: "#6382ff", background: "rgba(99,130,255,.12)",
-              border: "1px solid rgba(99,130,255,.25)",
-              padding: "2px 7px", borderRadius: 5,
-            }}>
-              Hoy
-            </span>
-          )}
-        </span>
-
-        {/* block count pill */}
-        <span style={{
-          fontSize: 11, fontWeight: 700,
-          color: count > 0 ? (isToday ? "#6382ff" : "var(--text-muted)") : "var(--text-muted, rgba(255,255,255,.2))",
-          background: count > 0 ? (isToday ? "rgba(99,130,255,.1)" : "var(--bg-hover, rgba(255,255,255,.06))") : "transparent",
-          padding: count > 0 ? "3px 10px" : "3px 4px",
-          borderRadius: 99,
-          border: count > 0 ? `1px solid ${isToday ? "rgba(99,130,255,.22)" : "var(--border-light, rgba(255,255,255,.1))"}` : "none",
-        }}>
-          {count > 0 ? `${count} bloque${count === 1 ? "" : "s"}` : "libre"}
-        </span>
-
-        <span style={{ color: "var(--text-muted, rgba(255,255,255,.3))", flexShrink: 0 }}>
-          <IcoChevron up={open} />
-        </span>
-      </button>
-
-      {/* body */}
-      {open && (
-        <div style={{ padding: "0 14px 14px" }}>
-          <DayPanel
-            day={day}
-            dayData={dayData}
-            currentDay={currentDay}
-            currentLesson={currentLesson}
-          />
-        </div>
-      )}
+          return (
+            <button
+              key={day}
+              onClick={() => onSelect(day)}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                gap: 3, padding: "10px 16px 12px",
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "inherit", position: "relative",
+                borderBottom: isActive ? "2.5px solid var(--accent)" : "2.5px solid transparent",
+                marginBottom: -1,
+                transition: "color .15s",
+                flexShrink: 0,
+              }}
+            >
+              <span style={{
+                fontSize: 18, fontWeight: isActive ? 800 : 600,
+                color: isActive ? "var(--accent)" : isToday ? "var(--text)" : "var(--text-muted)",
+                letterSpacing: "-.01em",
+              }}>
+                {day}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -300,12 +509,12 @@ function DayRow({ day, dayData, currentDay, currentLesson, defaultOpen }) {
 function EmptyState() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "72px 0", textAlign: "center" }}>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--bg-elevated)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-subtle)" }}>
+      <div style={{ width: 52, height: 52, borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-subtle)" }}>
         <IcoCal />
       </div>
       <div>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-subtle)", marginBottom: 4 }}>No hay horario disponible</div>
-        <div style={{ fontSize: 12, color: "var(--text-muted, rgba(255,255,255,.25))" }}>Tu sección aún no tiene un horario registrado.</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-subtle)", marginBottom: 4 }}>No hay horario disponible</div>
+        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Tu sección aún no tiene un horario registrado.</div>
       </div>
     </div>
   );
@@ -316,6 +525,9 @@ export default function MiHorarioView() {
   const { schedule, sectionName, part, isLoading, error } = useSchedule();
   const { dayName: currentDay, currentLesson } = getCurrentContext();
 
+  const defaultTab = currentDay ?? "Lunes";
+  const [activeDay, setActiveDay] = useState(defaultTab);
+
   const totalBlocks = schedule
     ? DAYS.reduce((acc, d) => acc + mergeBlocks(schedule[d] ?? {}).length, 0)
     : 0;
@@ -323,10 +535,10 @@ export default function MiHorarioView() {
   return (
     <>
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes slideUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes pulse   { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:.5; transform:scale(1.6) } }
       `}</style>
 
       <div className="db-view">
@@ -342,7 +554,6 @@ export default function MiHorarioView() {
           </div>
         </div>
 
-        {/* Loading */}
         {isLoading && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-subtle)", padding: "40px 0" }}>
             <span className="db-spinner" style={{ width: 14, height: 14 }} />
@@ -350,27 +561,33 @@ export default function MiHorarioView() {
           </div>
         )}
 
-        {/* Error */}
         {!isLoading && error && (
           <div className="db-inline-alert db-inline-alert--error">{error}</div>
         )}
 
-        {/* Empty */}
         {!isLoading && !error && !schedule && <EmptyState />}
 
-        {/* Accordion days */}
         {!isLoading && !error && schedule && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {DAYS.map(day => (
-              <DayRow
-                key={day}
-                day={day}
-                dayData={schedule[day] ?? {}}
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {/* tabs */}
+            <DayTabs
+              days={DAYS}
+              activeDay={activeDay}
+              onSelect={setActiveDay}
+              currentDay={currentDay}
+              schedule={schedule}
+            />
+
+            {/* contenido del día activo */}
+            <div style={{ paddingTop: 16 }}>
+              <DayContent
+                key={activeDay}
+                day={activeDay}
+                dayData={schedule[activeDay] ?? {}}
                 currentDay={currentDay}
                 currentLesson={currentLesson}
-                defaultOpen={day === currentDay || (currentDay === null && day === "Lunes")}
               />
-            ))}
+            </div>
           </div>
         )}
       </div>

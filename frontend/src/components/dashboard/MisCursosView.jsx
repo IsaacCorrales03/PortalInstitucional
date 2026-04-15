@@ -6,7 +6,7 @@ import { usePreload } from "@/lib/usePreload";
 ───────────────────────────────────────────────────────────────── */
 function IconBook() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -17,167 +17,103 @@ function IconBook() {
 
 function IconWrench() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
     </svg>
   );
 }
 
-function IconUserTiny() {
+function IconUser() {
   return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4"/>
       <path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/>
     </svg>
   );
 }
 
-function IconStar() {
+function IconChevron() {
   return (
-    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
     </svg>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   COURSE CARD
-───────────────────────────────────────────────────────────────── */
-function CourseCard({ course, variant, index }) {
-  const isTech = variant === "technical";
+function IconEmpty() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+  );
+}
 
-  const accentColor     = isTech ? "#6382ff" : "#4ade80";
-  const accentRgb       = isTech ? "99,130,255" : "74,222,128";
-  const accentSoft      = isTech ? "rgba(99,130,255,.08)" : "rgba(74,222,128,.07)";
-  const accentBorder    = isTech ? "rgba(99,130,255,.18)" : "rgba(74,222,128,.18)";
-  const accentBorderHov = isTech ? "rgba(99,130,255,.4)" : "rgba(74,222,128,.4)";
-
-  const animDelay = `${index * 0.045}s`;
-
+function CourseCard({ course, index, accentVar, accentSoft, borderVar }) {
   return (
     <div
-      style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        padding: "0",
-        background: "var(--bg-elevated)",
-        border: `1px solid ${accentBorder}`,
-        borderRadius: 12,
-        overflow: "hidden",
-        transition: "transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .15s",
+      className="db-stat-card"
+      style={{ gap: 0, padding: 0, overflow: "hidden",
+        animationDelay: `${index * 0.04}s`,
+        animation: "courseIn .3s ease both",
         cursor: "default",
-        animation: `fadeSlideUp .35s ease both`,
-        animationDelay: animDelay,
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-3px) scale(1.01)";
-        e.currentTarget.style.boxShadow = `0 8px 28px rgba(${accentRgb},.14), 0 2px 8px rgba(0,0,0,.12)`;
-        e.currentTarget.style.borderColor = accentBorderHov;
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0) scale(1)";
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = accentBorder;
       }}
     >
-      {/* Top color bar */}
-      <div style={{
-        height: 3,
-        background: isTech
-          ? `linear-gradient(90deg, #6382ff 0%, #a78bfa 100%)`
-          : `linear-gradient(90deg, #4ade80 0%, #34d399 100%)`,
-        flexShrink: 0,
-      }} />
+      <div style={{ height: 3, background: accentVar, flexShrink: 0, opacity: 0.85 }} />
 
-      {/* Body */}
-      <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-
-        {/* Badges row */}
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", minHeight: 18 }}>
-          {course.is_guide && (
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 3,
-              fontSize: 9, fontWeight: 800, letterSpacing: ".08em",
-              textTransform: "uppercase",
-              color: "#f59e0b",
-              background: "rgba(245,158,11,.1)",
-              border: "1px solid rgba(245,158,11,.22)",
-              padding: "2px 7px 2px 5px",
-              borderRadius: 5,
-            }}>
-              <IconStar /> guía
-            </span>
-          )}
-          {course.section_part && (
-            <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: ".08em",
-              textTransform: "uppercase",
-              color: accentColor,
-              background: accentSoft,
-              border: `1px solid ${accentBorder}`,
-              padding: "2px 7px",
-              borderRadius: 5,
-            }}>
-              parte {course.section_part}
-            </span>
-          )}
-        </div>
-
-        {/* Course name */}
-        <div style={{
-          fontWeight: 700,
-          fontSize: 14,
-          color: "var(--text)",
-          lineHeight: 1.3,
-          letterSpacing: "-.01em",
-        }}>
+      <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
           {course.course_name}
         </div>
 
-        {/* Description */}
-        {course.description ? (
-          <p style={{
-            margin: 0,
-            fontSize: 11.5,
-            color: "var(--text-subtle)",
-            lineHeight: 1.6,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}>
-            {course.description}
-          </p>
-        ) : (
-          <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-muted, rgba(255,255,255,.18))", fontStyle: "italic" }}>
-            Sin descripción
-          </p>
+        <p style={{
+          margin: 0, fontSize: 12, lineHeight: 1.6,
+          color: course.description ? "var(--text-muted)" : "var(--text-subtle)",
+          fontStyle: course.description ? "normal" : "italic",
+          display: "-webkit-box", WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical", overflow: "hidden", flex: 1,
+        }}>
+          {course.description || "Sin descripción"}
+        </p>
+
+        {(course.is_guide || course.section_part) && (
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {course.is_guide && (
+              <span className="db-badge badge--orange" style={{ fontSize: 10 }}>★ Guía</span>
+            )}
+            {course.section_part && (
+              <span className="db-badge" style={{
+                fontSize: 10,
+                background: accentSoft,
+                color: accentVar,
+                border: `1px solid ${borderVar}`,
+              }}>
+                Parte {course.section_part}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Footer */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 6,
-        padding: "10px 16px 13px",
-        marginTop: 10,
-        borderTop: "1px solid var(--border-light)",
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 18px 14px",
+        borderTop: "1px solid var(--border)",
       }}>
         <div style={{
-          width: 22, height: 22, borderRadius: "50%",
+          width: 24, height: 24, borderRadius: "50%",
           background: accentSoft,
-          border: `1px solid ${accentBorder}`,
+          border: `1px solid ${borderVar}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: accentColor, flexShrink: 0,
+          color: accentVar, flexShrink: 0,
         }}>
-          <IconUserTiny />
+          <IconUser />
         </div>
-        <span style={{
-          fontSize: 11.5, color: "var(--text-subtle)", fontWeight: 500,
-          overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
-        }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
           {course.professor_name}
         </span>
       </div>
@@ -185,77 +121,56 @@ function CourseCard({ course, variant, index }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   SECTION BLOCK
-───────────────────────────────────────────────────────────────── */
-function CourseBlock({ title, subtitle, icon: Icon, courses, variant }) {
-  const isTech = variant === "technical";
-
-  const accentColor  = isTech ? "#6382ff" : "#4ade80";
-  const accentSoft   = isTech ? "rgba(99,130,255,.09)" : "rgba(74,222,128,.08)";
-  const accentBorder = isTech ? "rgba(99,130,255,.2)" : "rgba(74,222,128,.2)";
-
+function CourseBlock({ title, subtitle, Icon, courses, countLabel, accentVar, accentSoft, borderVar }) {
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-
-      {/* Header pill */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "12px 16px",
-        background: accentSoft,
-        border: `1px solid ${accentBorder}`,
-        borderRadius: 12,
-      }}>
+    <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="db-profile-section" style={{ gap: 0, padding: 0, overflow: "hidden" }}>
         <div style={{
-          width: 36, height: 36, flexShrink: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          borderRadius: 9,
-          background: isTech ? "rgba(99,130,255,.15)" : "rgba(74,222,128,.13)",
-          border: `1px solid ${accentBorder}`,
-          color: accentColor,
-        }}>
-          <Icon />
-        </div>
+          height: 3,
+          background: `linear-gradient(90deg, ${accentVar} 0%, transparent 100%)`,
+          flexShrink: 0,
+        }} />
 
-        <div style={{ flex: 1 }}>
-          <div style={{
-            fontSize: 14, fontWeight: 750,
-            color: accentColor,
-            letterSpacing: "-.015em",
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 26px" }}>
+          <div className="db-stat-icon" style={{
+            background: accentSoft,
+            border: `1px solid ${borderVar}`,
+            color: accentVar,
+            width: 46, height: 46, flexShrink: 0,
           }}>
-            {title}
+            <Icon />
           </div>
-          <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 1 }}>
-            {subtitle}
-          </div>
-        </div>
 
-        <div style={{
-          fontSize: 13, fontWeight: 800,
-          minWidth: 30, textAlign: "center",
-          padding: "5px 12px",
-          borderRadius: 99,
-          background: isTech ? "rgba(99,130,255,.15)" : "rgba(74,222,128,.13)",
-          border: `1px solid ${accentBorder}`,
-          color: accentColor,
-          letterSpacing: "-.01em",
-        }}>
-          {courses.length}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              {title}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, fontWeight: 500 }}>
+              {subtitle}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 800, color: accentVar, lineHeight: 1, letterSpacing: "-0.03em" }}>
+              {courses.length}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              {countLabel}
+            </span>
+          </div>
+
+          <div style={{ color: "var(--text-subtle)" }}><IconChevron /></div>
         </div>
       </div>
 
-      {/* Cards grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
-        gap: 10,
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
         {courses.map((c, i) => (
           <CourseCard
             key={`${c.course_id}-${c.section_part ?? "none"}-${i}`}
-            course={c}
-            variant={variant}
-            index={i}
+            course={c} index={i}
+            accentVar={accentVar}
+            accentSoft={accentSoft}
+            borderVar={borderVar}
           />
         ))}
       </div>
@@ -263,112 +178,78 @@ function CourseBlock({ title, subtitle, icon: Icon, courses, variant }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   EMPTY STATE
-───────────────────────────────────────────────────────────────── */
-function EmptyState() {
-  return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", gap: 12,
-      padding: "72px 0",
-      color: "var(--text-subtle)",
-      textAlign: "center",
-    }}>
-      <div style={{
-        width: 52, height: 52, borderRadius: 14,
-        background: "var(--bg-elevated)",
-        border: "1px solid var(--border-light)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "var(--text-subtle)",
-      }}>
-        <IconBook />
-      </div>
-      <div>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-subtle)", marginBottom: 4 }}>
-          No hay materias asignadas
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-muted, rgba(255,255,255,.25))" }}>
-          Tu sección aún no tiene cursos registrados.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   MAIN VIEW
-───────────────────────────────────────────────────────────────── */
 export default function MisCursosView() {
-
   const { data, isLoading, error } = usePreload("mycourses");
   const all = data ?? [];
 
-  // Técnicas sin specialty_id = compartidas (ej. Educación Física) → se muestran en el bloque académico
   const academic  = all.filter(c => !c.is_technical || c.course_name === "Educación Física");
-  const technical = all.filter(c => c.is_technical && c.course_name !== "Educación Física");
+  const technical = all.filter(c => c.is_technical  && c.course_name !== "Educación Física");
+
   return (
     <>
-      {/* Keyframes — inyectados una sola vez */}
       <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(10px); }
+        @keyframes courseIn {
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
       <div className="db-view">
-
-        {/* HEADER */}
         <div className="db-section-header">
           <div>
-            <div className="db-section-title">Mis Materias</div>
-            <div className="db-section-subtitle">
+            <h1 className="db-section-title">Mis Materias</h1>
+            <p className="db-section-subtitle">
               {all.length > 0
                 ? `${all.length} ${all.length === 1 ? "materia" : "materias"} · ${academic.length} académicas · ${technical.length} técnicas`
                 : "Cursos asignados a tu sección"}
-            </div>
+            </p>
           </div>
         </div>
 
-        {/* Loading */}
         {isLoading && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            fontSize: 13, color: "var(--text-subtle)", padding: "40px 0",
-          }}>
-            <span className="db-spinner" style={{ width: 14, height: 14 }} />
-            Cargando materias...
+          <div className="db-loading" style={{ padding: "60px 0" }}>
+            <span className="db-spinner" style={{ width: 22, height: 22 }} />
           </div>
         )}
 
-        {/* Error */}
         {!isLoading && error && (
           <div className="db-inline-alert db-inline-alert--error">{error}</div>
         )}
 
-        {/* Empty */}
-        {!isLoading && !error && all.length === 0 && <EmptyState />}
+        {!isLoading && !error && all.length === 0 && (
+          <div className="db-empty">
+            <IconEmpty />
+            <p>No hay materias asignadas</p>
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+              Tu sección aún no tiene cursos registrados.
+            </span>
+          </div>
+        )}
 
-        {/* Content */}
         {!isLoading && !error && all.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {academic.length > 0 && (
               <CourseBlock
-                title="Materias Academicas"
-                subtitle={`Plan general · ${academic.length} ${academic.length === 1 ? "materia" : "materias"}`}
-                icon={IconBook}
+                title="Materias Académicas"
+                subtitle="Plan general de estudios"
+                Icon={IconBook}
                 courses={academic}
-                variant="academic"
+                countLabel={academic.length === 1 ? "materia" : "materias"}
+                accentVar="var(--accent)"
+                accentSoft="var(--accent-soft)"
+                borderVar="var(--border-light)"
               />
             )}
             {technical.length > 0 && (
               <CourseBlock
-                title="Materias Tecnicas"
-                subtitle={`Especialidad · ${technical.length} ${technical.length === 1 ? "materia" : "materias"}`}
-                icon={IconWrench}
+                title="Materias Técnicas"
+                subtitle="Especialidad"
+                Icon={IconWrench}
                 courses={technical}
-                variant="technical"
+                countLabel={technical.length === 1 ? "materia" : "materias"}
+                accentVar="var(--accent2)"
+                accentSoft="var(--accent2-soft)"
+                borderVar="var(--border-light)"
               />
             )}
           </div>

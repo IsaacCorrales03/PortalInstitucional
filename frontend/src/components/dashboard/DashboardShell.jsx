@@ -10,6 +10,8 @@ import MiSeccionView from "./MiSeccionView";
 import MisCursosView from "./MisCursosView";
 import MiHorarioView from "./MiHorarioView";
 import MiAsistenciaView from "./MiAsistenciaView";
+import BecasView from "./BecasView";
+import CorreoView from "./MiCorreoView";
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export function getTokenPayload() {
@@ -26,16 +28,18 @@ export function getTokenPayload() {
 // ─── Views ────────────────────────────────────────────────────────────────────
 
 const VIEWS = {
-  perfil:    MiPerfilView,
-  miseccion: MiSeccionView,
+  "Mi Perfil":    MiPerfilView,
+  "Mi Seccion": MiSeccionView,
   usuarios:  UsuariosView,
   secciones: SectionsView,
-  miscursos: MisCursosView,
-  mihorario: MiHorarioView,
-  "mi-asistencia": MiAsistenciaView,
+  "Mis Materias": MisCursosView,
+  "Mi Horario": MiHorarioView,
+  "Mi Asistencia": MiAsistenciaView,
+  "Mis Becas": BecasView,
+  "Mi Correo": CorreoView
 };
 
-const DEFAULT_VIEW = "perfil";
+const DEFAULT_VIEW = "Mi Perfil";
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
 

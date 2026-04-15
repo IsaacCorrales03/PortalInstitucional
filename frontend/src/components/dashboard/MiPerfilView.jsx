@@ -3,25 +3,9 @@
 import { useState } from "react";
 import { usePreload } from "@/lib/usePreload";
 import { getTokenPayload } from "./DashboardShell";
+import { useTheme } from "@/lib/useTheme";   // ← hook de tema
 
-// ─── API helper ───────────────────────────────────────────────────────────────
 
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("token");
-  const res = await fetch(`http://localhost:8000${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(options.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Error ${res.status}`);
-  }
-  return res.json();
-}
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -50,11 +34,11 @@ function getInitials(name = "") {
 // ─── Validación de contraseña ─────────────────────────────────────────────────
 
 const PASSWORD_CHECKS = [
-  { key: "length",  label: "Mínimo 8 caracteres",    test: (p) => p.length >= 8 },
-  { key: "upper",   label: "Una letra mayúscula (A-Z)", test: (p) => /[A-Z]/.test(p) },
-  { key: "lower",   label: "Una letra minúscula (a-z)", test: (p) => /[a-z]/.test(p) },
-  { key: "number",  label: "Un número (0-9)",           test: (p) => /[0-9]/.test(p) },
-  { key: "special", label: "Un símbolo (!@#$%^&*…)",    test: (p) => /[^A-Za-z0-9]/.test(p) },
+  { key: "length",  label: "Mínimo 8 caracteres",       test: (p) => p.length >= 8 },
+  { key: "upper",   label: "Una letra mayúscula (A-Z)",  test: (p) => /[A-Z]/.test(p) },
+  { key: "lower",   label: "Una letra minúscula (a-z)",  test: (p) => /[a-z]/.test(p) },
+  { key: "number",  label: "Un número (0-9)",            test: (p) => /[0-9]/.test(p) },
+  { key: "special", label: "Un símbolo (!@#$%^&*…)",     test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
 function getPasswordScore(p) { return PASSWORD_CHECKS.filter((c) => c.test(p)).length; }
@@ -86,6 +70,14 @@ const Icon = {
   sun:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
   moon:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
   monitor: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+  leaf: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>,
+  waves: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>,
+
+  flower: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/><path d="M12 14a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/><path d="M2 12a4 4 0 0 1 4-4 4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4z"/><path d="M14 12a4 4 0 0 1 4-4 4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4z"/></svg>,
+
+  flame: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+
+  zap: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
 };
 
 // ─── ProfileField ─────────────────────────────────────────────────────────────
@@ -117,7 +109,7 @@ function PasswordInput({ name, value, onChange, placeholder }) {
       />
       <button
         type="button" onClick={() => setShow((s) => !s)}
-        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--db-text-muted)", display: "flex", alignItems: "center" }}
+        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center" }}
         tabIndex={-1}
       >
         {show ? Icon.eyeOff : Icon.eye}
@@ -145,7 +137,7 @@ function PasswordStrength({ password }) {
           const ok = c.test(password);
           return (
             <span key={c.key} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 5, color: ok ? "var(--success)" : "var(--text-muted)", transition: "color 0.2s" }}>
-              <span style={{ width: 14, height: 14, borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: ok ? "var(--success-soft)" : "var(--bg-elevated)", border: `1px solid ${ok ? "rgba(52,211,153,0.3)" : "var(--border)"}`, color: ok ? "var(--success)" : "var(--text-subtle)", transition: "all 0.2s" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: ok ? "var(--success-soft)" : "var(--bg-elevated)", border: `1px solid ${ok ? "rgba(82,212,138,0.3)" : "var(--border)"}`, color: ok ? "var(--success)" : "var(--text-subtle)", transition: "all 0.2s" }}>
                 {ok ? Icon.check : Icon.x}
               </span>
               {c.label}
@@ -162,10 +154,10 @@ function PasswordStrength({ password }) {
 const EMPTY_PASS = { current: "", next: "", confirm: "" };
 
 function PasswordSection({ userId }) {
-  const [open, setOpen]     = useState(false);
-  const [form, setForm]     = useState(EMPTY_PASS);
+  const [open, setOpen]       = useState(false);
+  const [form, setForm]       = useState(EMPTY_PASS);
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState(null);
+  const [error, setError]     = useState(null);
   const [success, setSuccess] = useState(false);
 
   function handleChange(e) { setForm((p) => ({ ...p, [e.target.name]: e.target.value })); setError(null); setSuccess(false); }
@@ -232,21 +224,21 @@ const EMPTY_EMAIL = { newEmail: "", confirmEmail: "", password: "" };
 const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 function EmailSection({ userId, currentEmail }) {
-  const [open, setOpen]     = useState(false);
-  const [form, setForm]     = useState(EMPTY_EMAIL);
+  const [open, setOpen]       = useState(false);
+  const [form, setForm]       = useState(EMPTY_EMAIL);
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState(null);
+  const [error, setError]     = useState(null);
   const [success, setSuccess] = useState(false);
 
   function handleChange(e) { setForm((p) => ({ ...p, [e.target.name]: e.target.value })); setError(null); setSuccess(false); }
 
   async function handleSubmit() {
-    if (!form.newEmail)                          { setError("Ingresá el nuevo email."); return; }
-    if (!isValidEmail(form.newEmail))            { setError("El email no tiene un formato válido."); return; }
-    if (form.newEmail === currentEmail)          { setError("El nuevo email es igual al actual."); return; }
-    if (!form.confirmEmail)                      { setError("Confirmá el nuevo email."); return; }
-    if (form.newEmail !== form.confirmEmail)     { setError("Los emails no coinciden."); return; }
-    if (!form.password)                          { setError("Ingresá tu contraseña para confirmar."); return; }
+    if (!form.newEmail)                      { setError("Ingresá el nuevo email."); return; }
+    if (!isValidEmail(form.newEmail))        { setError("El email no tiene un formato válido."); return; }
+    if (form.newEmail === currentEmail)      { setError("El nuevo email es igual al actual."); return; }
+    if (!form.confirmEmail)                  { setError("Confirmá el nuevo email."); return; }
+    if (form.newEmail !== form.confirmEmail) { setError("Los emails no coinciden."); return; }
+    if (!form.password)                      { setError("Ingresá tu contraseña para confirmar."); return; }
     setLoading(true); setError(null);
     try {
       await apiFetch("/auth/change-email", { method: "PUT", body: JSON.stringify({ user_id: userId, new_email: form.newEmail, password: form.password }) });
@@ -299,35 +291,101 @@ function EmailSection({ userId, currentEmail }) {
 
 // ─── ThemeSection ─────────────────────────────────────────────────────────────
 
-const THEMES = [
-  { key: "dark",   label: "Oscuro",  icon: Icon.moon },
-  { key: "light",  label: "Claro",   icon: Icon.sun },
+const BASE_THEMES = [
+  { key: "dark",   label: "Oscuro",  icon: Icon.moon    },
+  { key: "light",  label: "Claro",   icon: Icon.sun     },
   { key: "system", label: "Sistema", icon: Icon.monitor },
 ];
 
+const COLOR_THEMES = [
+  { key: "neon",   label: "Neón",   icon: Icon.zap    },
+  { key: "lava",   label: "Lava",   icon: Icon.flame  },
+  { key: "forest", label: "Bosque", icon: Icon.leaf   },
+  { key: "ocean",  label: "Océano", icon: Icon.waves  },
+  { key: "rose",   label: "Rose",   icon: Icon.flower },
+];
+
 function ThemeSection() {
-  const [selected, setSelected] = useState("dark");
+  const { theme, resolved, colorName, setTheme, setColorName } = useTheme();
+
+  const renderButton = (t, isActive, onClick) => (
+    <button
+      key={t.key}
+      onClick={onClick}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: 8, padding: "12px 20px",
+        borderRadius: "var(--radius-md)",
+        border: `1.5px solid ${isActive ? "var(--accent)" : "var(--border)"}`,
+        background: isActive ? "var(--accent-soft)" : "var(--bg-elevated)",
+        cursor: "pointer",
+        color: isActive ? "var(--accent)" : "var(--text-muted)",
+        transition: "all 0.18s",
+        fontFamily: "inherit", minWidth: 82,
+      }}
+    >
+      {t.icon}
+      <span style={{ fontSize: 12, fontWeight: 700 }}>{t.label}</span>
+      {isActive && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />}
+    </button>
+  );
+
   return (
     <div className="db-profile-section">
       <div className="db-profile-section-header">
         <div>
           <h2 className="db-profile-section-title">Apariencia</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>Elegí el tema de la interfaz</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+            Elegí el fondo y el color de la interfaz
+          </p>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-subtle)", padding: "3px 8px", borderRadius: 4, border: "1px dashed var(--border)" }}>
-          Próximamente
-        </span>
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        {THEMES.map((t) => {
-          const active = selected === t.key;
-          return (
-            <button key={t.key} onClick={() => setSelected(t.key)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: "var(--radius-md)", border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`, background: active ? "var(--accent-soft)" : "var(--bg-elevated)", cursor: "pointer", color: active ? "var(--accent)" : "var(--text-muted)", transition: "all 0.18s", fontFamily: "inherit" }}>
-              {t.icon}
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{t.label}</span>
-            </button>
-          );
-        })}
+
+      {/* Grupo 1: Fondo */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+          Fondo
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {BASE_THEMES.map((t) =>
+            renderButton(t, theme === t.key, () => setTheme(t.key))
+          )}
+        </div>
+      </div>
+
+      {/* Grupo 2: Color */}
+      <div>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+          Color
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {/* opción "default" — acento base del tema */}
+          {renderButton(
+            { key: "", label: "Default", icon: Icon.sun },
+            colorName === "",
+            () => setColorName("")
+          )}
+          {COLOR_THEMES.map((t) =>
+            renderButton(t, colorName === t.key, () => setColorName(t.key))
+          )}
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div style={{
+        marginTop: 12, padding: "12px 16px",
+        borderRadius: "var(--radius-md)",
+        background: "var(--bg-elevated)", border: "1px solid var(--border)",
+        fontSize: 13, color: "var(--text-muted)",
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        {resolved === "dark" ? Icon.moon : Icon.sun}
+        <span>
+          Fondo: <strong style={{ color: "var(--text)" }}>{theme}</strong>
+          {" · "}
+          Color: <strong style={{ color: "var(--accent)" }}>{colorName || "default"}</strong>
+          {theme === "system" && <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-subtle)" }}>(sistema: {resolved})</span>}
+        </span>
       </div>
     </div>
   );
@@ -336,12 +394,10 @@ function ThemeSection() {
 // ─── MiPerfilView ─────────────────────────────────────────────────────────────
 
 export default function MiPerfilView() {
-  // Datos del token — sincrónicos, no necesitan fetch
   const payload  = getTokenPayload();
   const roles    = payload?.roles   ?? [];
   const userId   = payload?.sub ? Number(payload.sub) : null;
 
-  // Perfil pre-cargado por AppLoader en la clave "profile"
   const { data: profile, isLoading, error } = usePreload("profile");
 
   const roleLabel   = getRoleLabel(roles);
@@ -354,7 +410,7 @@ export default function MiPerfilView() {
 
       {/* ── Tarjeta de identidad ── */}
       <div className="db-profile-card">
-        <div className="db-profile-avatar" style={{ width: 72, height: 72, fontSize: 24, fontWeight: 700, color: "white" }}>
+        <div className="db-profile-avatar" style={{ width: 76, height: 76, fontSize: 22, fontWeight: 800, color: "var(--accent)" }}>
           {initials}
         </div>
 
@@ -399,10 +455,10 @@ export default function MiPerfilView() {
           </div>
           <div className="db-profile-fields">
             <ProfileField label="Código estudiantil" value={profile.profile.student_code} mono />
-            <ProfileField label="Especialidad" value={profile.profile.specialty_name} />
-            <ProfileField label="Año" value={profile.profile.year_level ? `${profile.profile.year_level}° año` : null} />
-            <ProfileField label="Turno" value={SHIFT_LABELS[profile.profile.section_shift] ?? profile.profile.section_shift} />
-            <ProfileField label="Sección" value={profile.profile.section_name} />
+            <ProfileField label="Especialidad"        value={profile.profile.specialty_name} />
+            <ProfileField label="Año"                 value={profile.profile.year_level ? `${profile.profile.year_level}° año` : null} />
+            <ProfileField label="Turno"               value={SHIFT_LABELS[profile.profile.section_shift] ?? profile.profile.section_shift} />
+            <ProfileField label="Sección"             value={profile.profile.section_name} />
             <ProfileField
               label="Matriculado desde"
               value={profile.profile.enrolled_since

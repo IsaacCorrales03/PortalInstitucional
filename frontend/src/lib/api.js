@@ -106,3 +106,19 @@ export const getStudyPlanBySpecialty = (yearLevel, specialtyId) =>
 export async function getMySchedule(sectionId) {
   return apiFetch(`/dashboard/me/scholar_scheduale/${sectionId}`);
 }
+// ── SCHOLARSHIPS ───────────────────────────────────────
+export const getMyScholarships  = ()     => apiFetch("/scholarships/me");
+export const applyScholarship   = (type) => apiFetch("/scholarships/me/apply", { method: "POST", body: JSON.stringify({ type }) });
+export const getCorreoInbox    = () => apiFetch("/dashboard/me/correo");
+export const getCorreoEnviados = () => apiFetch("/dashboard/me/correo/enviados");
+export const getCorreoUsers    = () => apiFetch("/dashboard/me/correo/users");
+export const markCorreoRead = (mailId, isRead) =>
+  apiFetch(`/dashboard/me/correo/${mailId}/read`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_read: isRead }),
+  });
+export const sendCorreo = (data) =>
+  apiFetch("/dashboard/me/correo/send", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });

@@ -70,6 +70,21 @@ function buildTasks(roles = [], perms = [], userId = null) {
       fetch: () => apiFetch("/dashboard/"),
     },
     {
+      key:   "correo",
+      label: "Bandeja de entrada",
+      fetch: () => apiFetch("/dashboard/me/correo"),
+    },
+    {
+      key:   "correoUsers",
+      label: "Usuarios del sistema",
+      fetch: () => apiFetch("/dashboard/me/correo/users"),
+    },
+    {
+      key:   "correoEnviados",
+      label: "Correos enviados",
+      fetch: () => apiFetch("/dashboard/me/correo/enviados"),
+    },
+    {
       key:   "permissions",
       label: "Permisos",
       fetch: () =>

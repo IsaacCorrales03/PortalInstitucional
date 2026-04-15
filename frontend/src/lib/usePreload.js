@@ -43,6 +43,7 @@ const ENDPOINTS = {
   courses:     "/admin/courses",
   specialties: "/admin/specialties",
   attendance: "/dashboard/me/attendance",
+  scholarships: "/scholarships/me",
 };
  
 

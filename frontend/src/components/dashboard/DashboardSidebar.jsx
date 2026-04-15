@@ -139,16 +139,16 @@ const Icon = {
 // ─── Definición de nav ────────────────────────────────────────────────────────
 
 const NAV_BASE = [
-  { key: "perfil", label: "Mi perfil", icon: Icon.user },
+  { key: "Mi Perfil", label: "Mi perfil", icon: Icon.user },
 ];
 
 const NAV_STUDENT = [
-  { key: "miseccion",    label: "Mi sección",    icon: Icon.layout },
-  { key: "miscursos",    label: "Mis cursos",    icon: Icon.book },
-  { key: "mi-asistencia", label: "Mi asistencia", icon: Icon.check },
-  { key: "mihorario",     label: "Mi Horario",     icon: Icon.layers },
-  { key: "mis-becas",     label: "Mis becas",     icon: Icon.award },
-  { key: "mis-avisos",    label: "Mis avisos",    icon: Icon.mail },
+  { key: "Mi Seccion",    label: "Mi Sección",    icon: Icon.layout },
+  { key: "Mis Materias",    label: "Mis Cursos",    icon: Icon.book },
+  { key: "Mi Asistencia", label: "Mi Asistencia", icon: Icon.check },
+  { key: "Mi Horario",     label: "Mi Horario",     icon: Icon.layers },
+  { key: "Mis Becas",     label: "Mis Becas",     icon: Icon.award },
+  { key: "Mi Correo",    label: "Mi Correo",    icon: Icon.mail },
 ];
 
 const NAV_ADMIN = [

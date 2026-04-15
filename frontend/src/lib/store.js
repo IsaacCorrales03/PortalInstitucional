@@ -27,6 +27,9 @@ const FETCHERS = {
   meetings:      api.getMeetings,
   professors:    api.getProfessors, 
   mysection: api.getMySection,
+  correo:         api.getCorreoInbox,
+  correoEnviados: api.getCorreoEnviados,
+  correoUsers:    api.getCorreoUsers,
 };
 
 function emptySlice() {
@@ -47,6 +50,9 @@ export const useStore = create((set, get) => ({
   meetings:      emptySlice(),
   professors: emptySlice(),
   mysection: emptySlice(),
+  correo:         emptySlice(),
+  correoEnviados: emptySlice(),
+  correoUsers:    emptySlice(),
 
   // ── ensure(key) ───────────────────────────────────────────────
   // Fetches only if the slice has never been loaded (data === null).
