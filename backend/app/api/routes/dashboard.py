@@ -389,3 +389,224 @@ def get_my_grades(
         ))
 
     return result
+
+def build_mail_response(mails, current_user, db):
+    if not mails:
+        return []
+
+    sender_ids = {m.sender_id for m in mails}
+    senders = {
+        u.id: u for u in db.query(User).filter(User.id.in_(sender_ids)).all()
+    }
+
+    mail_ids = [m.id for m in mails]
+
+    recipients_map = {
+        (r.mail_id): r
+        for r in db.query(MailRecipient)
+        .filter(
+            MailRecipient.mail_id.in_(mail_ids),
+            MailRecipient.user_id == current_user.id
+        ).all()
+    }
+
+    attachments_map = {}
+    for att in db.query(MailAttachment).filter(
+        MailAttachment.mail_id.in_(mail_ids)
+    ).all():
+        attachments_map.setdefault(att.mail_id, []).append(att.file_url)
+
+    result = []
+
+    for m in mails:
+        recipient = recipients_map.get(m.id)
+
+        result.append(MailOut(
+            id=m.id,
+            subject=m.subject,
+            content=m.content,
+            sender_name=senders[m.sender_id].full_name if m.sender_id in senders else "Sistema",
+            sent_at=m.sent_at,
+            is_read=recipient.is_read if recipient else False,
+            attachments=attachments_map.get(m.id, []),
+            is_mine=(m.sender_id == current_user.id)
+        ))
+
+    return result
+
+from sqlalchemy import or_
+
+@router.get("/me/correo", response_model=list[MailOut])
+def get_my_inbox(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    enroll = db.query(Enrollment).filter(
+        Enrollment.user_id == current_user.id
+    ).first()
+
+    section_id = enroll.section_id if enroll else None
+
+    direct_mail_ids = (
+        db.query(MailRecipient.mail_id)
+        .filter(MailRecipient.user_id == current_user.id)
+        .subquery()
+    )
+
+    role_filter = or_(*[
+        Mail.target_role == role for role in current_user.roles
+    ]) if current_user.roles else None
+
+    filters = [
+        Mail.id.in_(direct_mail_ids),
+        Mail.target_role.is_(None),
+    ]
+
+    if section_id:
+        filters.append(Mail.target_section_id == section_id)
+
+    if role_filter is not None:
+        filters.append(role_filter)
+
+    mails = (
+        db.query(Mail)
+        .filter(or_(*filters))
+        .order_by(Mail.sent_at.desc())
+        .all()
+    )
+
+    return build_mail_response(mails, current_user, db)
+
+@router.get("/me/correo/enviados", response_model=list[MailOut])
+def get_sent_mail(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mails = (
+        db.query(Mail)
+        .filter(Mail.sender_id == current_user.id)
+        .order_by(Mail.sent_at.desc())
+        .all()
+    )
+
+    return build_mail_response(mails, current_user, db)
+
+@router.patch("/me/correo/{mail_id}/read")
+def mark_mail_read(
+    mail_id: int,
+    payload: MailReadUpdate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    recipient = db.query(MailRecipient).filter(
+        MailRecipient.mail_id == mail_id,
+        MailRecipient.user_id == current_user.id
+    ).first()
+
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Correo no encontrado")
+
+    recipient.is_read = payload.is_read
+    recipient.read_at = datetime.datetime.utcnow() if payload.is_read else None
+
+    db.commit()
+
+    return {"message": "Estado actualizado correctamente"}
+
+@router.post("/me/correo/send")
+def send_mail(
+    payload: MailCreate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Validación básica
+    if not payload.recipient_ids and not payload.target_role and not payload.target_section_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Debe especificar al menos un destino (usuarios, rol o sección)"
+        )
+
+    # Crear correo
+    mail = Mail(
+        sender_id=current_user.id,
+        subject=payload.subject,
+        content=payload.content,
+        target_role=payload.target_role,
+        target_section_id=payload.target_section_id,
+    )
+
+    db.add(mail)
+    db.flush()  # 👈 para obtener mail.id sin commit
+
+    # =========================
+    # DESTINATARIOS DIRECTOS
+    # =========================
+    recipients_to_create = set(payload.recipient_ids)
+
+    # =========================
+    # TARGET ROLE
+    # =========================
+    if payload.target_role:
+        users_by_role = (
+            db.query(User.id)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .filter(Role.name == payload.target_role)
+            .all()
+        )
+        recipients_to_create.update(u.id for u in users_by_role)
+
+    # =========================
+    #  TARGET SECTION
+    # =========================
+    if payload.target_section_id:
+        users_by_section = (
+            db.query(Enrollment.user_id)
+            .filter(Enrollment.section_id == payload.target_section_id)
+            .all()
+        )
+        recipients_to_create.update(u.user_id for u in users_by_section)
+
+    # =========================
+    # CREAR MailRecipient
+    # =========================
+    recipient_rows = [
+        MailRecipient(
+            mail_id=mail.id,
+            user_id=user_id,
+            is_read=False
+        )
+        for user_id in recipients_to_create
+        if user_id != current_user.id  # opcional: evitar enviarse a sí mismo
+    ]
+
+    db.add_all(recipient_rows)
+
+    # =========================
+    #  ADJUNTOS
+    # =========================
+    attachment_rows = [
+        MailAttachment(
+            mail_id=mail.id,
+            file_name=att.split("/")[-1],
+            file_url=att
+        )
+        for att in payload.attachments
+    ]
+
+    db.add_all(attachment_rows)
+
+    db.commit()
+
+    return {
+        "message": "Correo enviado correctamente",
+        "mail_id": mail.id,
+        "recipients": len(recipient_rows)
+    }
+@router.get("/me/correo/users")
+def get_correo_users(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    users = db.query(User.id, User.full_name).order_by(User.full_name).all()
+    return [{"id": u.id, "full_name": u.full_name} for u in users]

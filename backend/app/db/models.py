@@ -732,7 +732,52 @@ class ProfessorAvailabilitySlot(Base):
         CheckConstraint("lesson_number BETWEEN 1 AND 12", name="ck_availability_lesson"),
         primary_key=True,
     )
+class Mail(Base):
+    __tablename__ = "mails"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Quién envía
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    # Asunto y contenido
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Metadata
+    sent_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
+
+    # Opcional: si quieres tipo broadcast (como announcements)
+    target_role: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    target_section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sections.id"), nullable=True
+    )
+
+class MailRecipient(Base):
+    __tablename__ = "mail_recipients"
+
+    mail_id: Mapped[int] = mapped_column(
+        ForeignKey("mails.id"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), primary_key=True
+    )
+
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    read_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+class MailAttachment(Base):
+    __tablename__ = "mail_attachments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mail_id: Mapped[int] = mapped_column(
+        ForeignKey("mails.id"), nullable=False
+    )
+
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_url: Mapped[str] = mapped_column(String(500), nullable=False)
 # =========================
 # VOTATION SYSTEM
 # =========================

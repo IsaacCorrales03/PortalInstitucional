@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 
-from app.api.routes import admin, auth, specialities, dashboard
-from app.core.security import create_access_token, verify_password
+from app.api.routes import admin, auth, specialities, dashboard, scholarship
 from app.db.session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login-form")
@@ -34,7 +33,7 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG
 )
-
+app.include_router(scholarship.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(specialities.router)

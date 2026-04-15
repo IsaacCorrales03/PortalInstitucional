@@ -20,15 +20,17 @@ Reglas duras implementadas:
   8. Un aula solo puede usarse en slots donde su disponibilidad lo permite.
 
 Reglas de sincronización A↔B:
-  9. Académicas (incluyendo Ed. Física): bloque IDÉNTICO en A y B.
-  10. Técnicas: los slots coinciden en A y B, el contenido puede diferir.
+  9. Académicas: bloque IDÉNTICO en A y B (mismo profesor, misma aula).
+  10. Ed. Física: mismo slot y misma aula en A y B, pero DISTINTO profesor.
+  11. Técnicas: los slots coinciden en A y B, el contenido puede diferir.
 
 Reglas de aulas:
   11. Ed. Física → solo Gimnasio.
   12. Materias académicas → Aulas Verdes o Aula Especial.
   13. Materias técnicas → Laboratorios o Aulas Naranja.
   14. Dos grupos no pueden usar el mismo aula al mismo tiempo.
-  15. Académicas/Ed.Física → A y B comparten aula.
+  15. Académicas → A y B comparten aula.
+      Ed. Física → A y B comparten aula pero tienen distinto profesor.
       Técnicas propias → cada parte tiene su propio aula.
   16. Disponibilidad de aula respetada slot a slot.
 
@@ -47,6 +49,7 @@ NDAYS   = 5
 NBLOCKS = 12
 DIAS    = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
 INICIOS_TECNICOS = [0, 3, 6, 9]
+ID_EF   = 8   # ID de Educación Física
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -156,7 +159,7 @@ def _tamanios_validos(
     cursos: dict, id_m: int, cant_total: int
 ) -> list[int]:
     """Tamaños de bloque permitidos para la materia según su tipo."""
-    if id_m == 8:                           # Educación Física: siempre 2
+    if id_m == ID_EF:                       # Educación Física: siempre 2
         return [2]
     if cursos[id_m]["es_tecnica"]:
         return [t for t in [3, 6] if t <= cant_total]
@@ -167,7 +170,7 @@ def _inicios_validos(
     cursos: dict, id_m: int, tam: int
 ) -> list[int]:
     """Posiciones de inicio válidas para un bloque de tamaño `tam`."""
-    if cursos[id_m]["es_tecnica"] and id_m != 8:
+    if cursos[id_m]["es_tecnica"] and id_m != ID_EF:
         return [b for b in INICIOS_TECNICOS if b + tam <= NBLOCKS]
     return list(range(NBLOCKS - tam + 1))
 
@@ -180,7 +183,7 @@ def _aulas_validas_para_materia(
     Índices numéricos de las aulas permitidas para la materia,
     filtradas además por disponibilidad en el bloque (d, b_ini, tam).
     """
-    if id_m == 8:
+    if id_m == ID_EF:
         tipos_ok = ("gimnasio",)
     elif cursos[id_m]["es_tecnica"]:
         tipos_ok = ("lab_verde", "lab_naranja", "naranja")
@@ -225,12 +228,16 @@ def _construir_modelo(
     ids_A = set(reqs["A"].keys())
     ids_B = set(reqs["B"].keys())
 
+    # Ed. Física: tratamiento especial (mismo slot+aula, distinto profesor)
+    ef_compartida = ID_EF if (ID_EF in ids_A and ID_EF in ids_B) else None
+
+    # Académicas compartidas (excluye EF y técnicas)
     compartidas = {
         id_m for id_m in ids_A & ids_B
-        if not cursos[id_m]["es_tecnica"] or id_m == 8
+        if not cursos[id_m]["es_tecnica"] and id_m != ID_EF
     }
-    tec_A = {id_m for id_m in ids_A if cursos[id_m]["es_tecnica"] and id_m != 8}
-    tec_B = {id_m for id_m in ids_B if cursos[id_m]["es_tecnica"] and id_m != 8}
+    tec_A = {id_m for id_m in ids_A if cursos[id_m]["es_tecnica"] and id_m != ID_EF}
+    tec_B = {id_m for id_m in ids_B if cursos[id_m]["es_tecnica"] and id_m != ID_EF}
 
     # ── Variables de bloques ──────────────────────────────────────────────────
     bloques_comp: dict[int, list] = {id_m: [] for id_m in compartidas}
@@ -238,6 +245,7 @@ def _construir_modelo(
         "A": {id_m: [] for id_m in tec_A},
         "B": {id_m: [] for id_m in tec_B},
     }
+    bloques_ef: dict[str, list] = {"A": [], "B": []}
 
     cobertura: dict[str, dict[tuple, list]] = {
         p: {(d, b): [] for d in range(NDAYS) for b in range(NBLOCKS)}
@@ -249,8 +257,9 @@ def _construir_modelo(
     aula_tec: dict[str, dict[int, dict[tuple, object]]] = {
         p: {id_m: {} for id_m in bloques_tec[p]} for p in partes
     }
+    aula_ef: dict[str, dict[tuple, object]] = {"A": {}, "B": {}}
 
-    # ── Generar bloques compartidos (académicas + Ed. Física) ─────────────────
+    # ── Generar bloques compartidos (académicas, sin EF) ──────────────────────
     for id_m in compartidas:
         cant = reqs["A"][id_m]
         for ip in _profs_validos(cursos, profesores, secciones_config, seccion_id, id_m):
@@ -276,6 +285,35 @@ def _construir_modelo(
                         for offset in range(tam):
                             cobertura["A"][d, b_ini + offset].append((var, id_m, ip))
                             cobertura["B"][d, b_ini + offset].append((var, id_m, ip))
+
+    # ── Generar bloques de Ed. Física (independientes por parte) ──────────────
+    if ef_compartida:
+        for parte in partes:
+            cant = reqs[parte][ID_EF]
+            for ip in _profs_validos(cursos, profesores, secciones_config, seccion_id, ID_EF):
+                for d in range(NDAYS):
+                    for tam in _tamanios_validos(cursos, ID_EF, cant):
+                        for b_ini in _inicios_validos(cursos, ID_EF, tam):
+                            if not _prof_disponible_en_bloque(
+                                disponibilidad_prof, ip, d, b_ini, tam
+                            ):
+                                continue
+                            validas = _aulas_validas_para_materia(
+                                cursos, aulas, aulas_idx, ID_EF, d, b_ini, tam
+                            )
+                            if not validas:
+                                continue
+                            var = model.new_bool_var(
+                                f"ef_{parte}_p{ip}_d{d}_b{b_ini}_t{tam}"
+                            )
+                            av = model.new_int_var_from_domain(
+                                cp_model.Domain.from_values(validas),
+                                f"aula_ef_{parte}_p{ip}_d{d}_b{b_ini}_t{tam}",
+                            )
+                            bloques_ef[parte].append((var, ip, d, b_ini, tam))
+                            aula_ef[parte][(ip, d, b_ini, tam)] = (var, av)
+                            for offset in range(tam):
+                                cobertura[parte][d, b_ini + offset].append((var, ID_EF, ip))
 
     # ── Generar bloques técnicos propios ──────────────────────────────────────
     for parte in partes:
@@ -322,7 +360,14 @@ def _construir_modelo(
         terminos = [var * tam for var, _, _, _, tam in bloques_comp[id_m]]
         model.add(sum(terminos) == cant)
 
-    # R2b. Lecciones exactas — técnicas propias
+    # R2b. Lecciones exactas — Ed. Física
+    if ef_compartida:
+        for parte in partes:
+            cant = reqs[parte][ID_EF]
+            terminos = [var * tam for var, _, _, _, tam in bloques_ef[parte]]
+            model.add(sum(terminos) == cant)
+
+    # R2c. Lecciones exactas — técnicas propias
     for parte in partes:
         for id_m, cant in reqs[parte].items():
             if id_m in bloques_tec[parte]:
@@ -335,6 +380,11 @@ def _construir_modelo(
         for var, ip, d, b_ini, tam in bloques_comp[id_m]:
             for offset in range(tam):
                 cobertura_prof.setdefault((ip, d, b_ini + offset), []).append(var)
+    if ef_compartida:
+        for parte in partes:
+            for var, ip, d, b_ini, tam in bloques_ef[parte]:
+                for offset in range(tam):
+                    cobertura_prof.setdefault((ip, d, b_ini + offset), []).append(var)
     for parte in partes:
         for id_m in bloques_tec[parte]:
             for var, ip, d, b_ini, tam in bloques_tec[parte][id_m]:
@@ -350,6 +400,12 @@ def _construir_modelo(
             vd = [var for var, _, dd, _, _ in bloques_comp[id_m] if dd == d]
             if vd:
                 model.add(sum(vd) <= 1)
+    if ef_compartida:
+        for parte in partes:
+            for d in range(NDAYS):
+                vd = [var for var, _, dd, _, _ in bloques_ef[parte] if dd == d]
+                if vd:
+                    model.add(sum(vd) <= 1)
     for parte in partes:
         for id_m in bloques_tec[parte]:
             for d in range(NDAYS):
@@ -357,7 +413,7 @@ def _construir_modelo(
                 if vd:
                     model.add(sum(vd) <= 1)
 
-    # R4b. Un único profesor por materia (exclusividad)
+    # R4b. Un único profesor por materia (exclusividad) — compartidas
     for id_m in compartidas:
         profs = list({ip for _, ip, _, _, _ in bloques_comp[id_m]})
         if len(profs) <= 1:
@@ -370,6 +426,7 @@ def _construir_modelo(
                 model.add_implication(var, pa)
         model.add(sum(prof_activo.values()) == 1)
 
+    # R4c. Un único profesor por materia — técnicas propias
     for parte in partes:
         for id_m in bloques_tec[parte]:
             profs = list({ip for _, ip, _, _, _ in bloques_tec[parte][id_m]})
@@ -382,6 +439,27 @@ def _construir_modelo(
                 for var in [v for v, p, _, _, _ in bloques_tec[parte][id_m] if p == ip]:
                     model.add_implication(var, pa)
             model.add(sum(prof_activo.values()) == 1)
+
+    # R4d. Un único profesor por parte para Ed. Física + guardar vars para R4e
+    prof_activo_ef: dict[str, dict[int, object]] = {"A": {}, "B": {}}
+    if ef_compartida:
+        for parte in partes:
+            profs = list({ip for _, ip, _, _, _ in bloques_ef[parte]})
+            for ip in profs:
+                pa = model.new_bool_var(f"prof_activo_ef_{parte}_p{ip}")
+                prof_activo_ef[parte][ip] = pa
+                for var in [v for v, p, _, _, _ in bloques_ef[parte] if p == ip]:
+                    model.add_implication(var, pa)
+            if len(profs) > 1:
+                model.add(sum(prof_activo_ef[parte].values()) == 1)
+
+    # R4e. Ed. Física: distinto profesor en A y B
+    if ef_compartida:
+        for ip in set(prof_activo_ef["A"]) & set(prof_activo_ef["B"]):
+            model.add_bool_or([
+                prof_activo_ef["A"][ip].negated(),
+                prof_activo_ef["B"][ip].negated(),
+            ])
 
     # R5. Sincronización de slots técnicos A↔B
     slot_tec: dict[str, dict[tuple, object]] = {p: {} for p in partes}
@@ -405,7 +483,50 @@ def _construir_modelo(
         for b in range(NBLOCKS):
             model.add(slot_tec["A"][d, b] == slot_tec["B"][d, b])
 
-    # R6. Conflictos de aula: dos bloques activos no pueden compartir aula
+    # R6. Sincronización de slots de Ed. Física A↔B (mismo slot, misma aula)
+    if ef_compartida:
+        slot_ef: dict[str, dict[tuple, object]] = {"A": {}, "B": {}}
+        for parte in partes:
+            for d in range(NDAYS):
+                for b in range(NBLOCKS):
+                    ef_vars = [
+                        var for var, _, dd, b_ini, tam in bloques_ef[parte]
+                        if dd == d and b_ini <= b < b_ini + tam
+                    ]
+                    v = model.new_bool_var(f"slot_ef_{parte}_d{d}_b{b}")
+                    if ef_vars:
+                        model.add(sum(ef_vars) >= v)
+                        model.add_bool_or(ef_vars + [v.negated()])
+                    else:
+                        model.add(v == 0)
+                    slot_ef[parte][d, b] = v
+
+        # Mismo slot en A y B
+        for d in range(NDAYS):
+            for b in range(NBLOCKS):
+                model.add(slot_ef["A"][d, b] == slot_ef["B"][d, b])
+
+        # Misma aula en A y B cuando ambos están activos
+        for d in range(NDAYS):
+            for b in range(NBLOCKS):
+                ef_A = [
+                    (var, ip, b_ini, tam)
+                    for var, ip, dd, b_ini, tam in bloques_ef["A"]
+                    if dd == d and b_ini <= b < b_ini + tam
+                ]
+                ef_B = [
+                    (var, ip, b_ini, tam)
+                    for var, ip, dd, b_ini, tam in bloques_ef["B"]
+                    if dd == d and b_ini <= b < b_ini + tam
+                ]
+                for varA, ipA, b_iniA, tamA in ef_A:
+                    _, avA = aula_ef["A"][(ipA, d, b_iniA, tamA)]
+                    for varB, ipB, b_iniB, tamB in ef_B:
+                        _, avB = aula_ef["B"][(ipB, d, b_iniB, tamB)]
+                        model.add(avA == avB).only_enforce_if([varA, varB])
+
+    # R7. Conflictos de aula: dos bloques activos no pueden compartir aula
+    # Cada entrada: (bv, av, es_ef, parte) — para poder saltar pares EF A↔B
     slot_aulas: dict[tuple, list] = {
         (d, b): [] for d in range(NDAYS) for b in range(NBLOCKS)
     }
@@ -413,19 +534,28 @@ def _construir_modelo(
         for var, ip, d, b_ini, tam in bloques_comp[id_m]:
             bv, av = aula_comp[id_m][(ip, d, b_ini, tam)]
             for offset in range(tam):
-                slot_aulas[d, b_ini + offset].append((bv, av))
+                slot_aulas[d, b_ini + offset].append((bv, av, False, None))
+    if ef_compartida:
+        for parte in partes:
+            for var, ip, d, b_ini, tam in bloques_ef[parte]:
+                bv, av = aula_ef[parte][(ip, d, b_ini, tam)]
+                for offset in range(tam):
+                    slot_aulas[d, b_ini + offset].append((bv, av, True, parte))
     for parte in partes:
         for id_m in bloques_tec[parte]:
             for var, ip, d, b_ini, tam in bloques_tec[parte][id_m]:
                 bv, av = aula_tec[parte][id_m][(ip, d, b_ini, tam)]
                 for offset in range(tam):
-                    slot_aulas[d, b_ini + offset].append((bv, av))
+                    slot_aulas[d, b_ini + offset].append((bv, av, False, parte))
     for entradas in slot_aulas.values():
         n = len(entradas)
         for i in range(n):
             for j in range(i + 1, n):
-                bv_i, av_i = entradas[i]
-                bv_j, av_j = entradas[j]
+                bv_i, av_i, ef_i, parte_i = entradas[i]
+                bv_j, av_j, ef_j, parte_j = entradas[j]
+                # EF A↔B comparten aula intencionalmente → saltar este par
+                if ef_i and ef_j and parte_i != parte_j:
+                    continue
                 model.add(av_i != av_j).only_enforce_if([bv_i, bv_j])
 
     # ── Restricciones blandas ─────────────────────────────────────────────────
@@ -485,14 +615,17 @@ def _construir_modelo(
 
     # ── Empaquetar datos que necesitará el extractor de resultados ────────────
     solver_data = {
-        "partes":        partes,
-        "reqs":          reqs,
-        "compartidas":   compartidas,
-        "bloques_comp":  bloques_comp,
-        "bloques_tec":   bloques_tec,
-        "aula_comp":     aula_comp,
-        "aula_tec":      aula_tec,
-        "penalties":     penalties,
+        "partes":         partes,
+        "reqs":           reqs,
+        "compartidas":    compartidas,
+        "bloques_comp":   bloques_comp,
+        "bloques_tec":    bloques_tec,
+        "bloques_ef":     bloques_ef,
+        "aula_comp":      aula_comp,
+        "aula_tec":       aula_tec,
+        "aula_ef":        aula_ef,
+        "ef_compartida":  ef_compartida,
+        "penalties":      penalties,
     }
 
     return model, solver_data
@@ -514,18 +647,22 @@ def _extraer_horarios(
     Lee los valores del solver y devuelve {parte: {dia: {leccion: entry}}}.
     entry = {materia, profesor, prof_id, es_tecnica, aula}
     """
-    partes       = solver_data["partes"]
-    compartidas  = solver_data["compartidas"]
-    bloques_comp = solver_data["bloques_comp"]
-    bloques_tec  = solver_data["bloques_tec"]
-    aula_comp    = solver_data["aula_comp"]
-    aula_tec     = solver_data["aula_tec"]
+    partes        = solver_data["partes"]
+    compartidas   = solver_data["compartidas"]
+    bloques_comp  = solver_data["bloques_comp"]
+    bloques_tec   = solver_data["bloques_tec"]
+    bloques_ef    = solver_data["bloques_ef"]
+    aula_comp     = solver_data["aula_comp"]
+    aula_tec      = solver_data["aula_tec"]
+    aula_ef       = solver_data["aula_ef"]
+    ef_compartida = solver_data["ef_compartida"]
 
     horarios = {
         p: {dia: {b + 1: None for b in range(NBLOCKS)} for dia in DIAS}
         for p in partes
     }
 
+    # Académicas compartidas
     for id_m in compartidas:
         for var, ip, d, b_ini, tam in bloques_comp[id_m]:
             if solver.value(var) != 1:
@@ -543,6 +680,25 @@ def _extraer_horarios(
                 for p in partes:
                     horarios[p][DIAS[d]][b_ini + offset + 1] = entry
 
+    # Ed. Física (independiente por parte)
+    if ef_compartida:
+        for parte in partes:
+            for var, ip, d, b_ini, tam in bloques_ef[parte]:
+                if solver.value(var) != 1:
+                    continue
+                _, av = aula_ef[parte][(ip, d, b_ini, tam)]
+                nombre_aula = aulas[aulas_lista[solver.value(av)]]["Nombre"]
+                entry = {
+                    "materia":    cursos[ID_EF]["Nombre"],
+                    "profesor":   profesores[ip]["Nombre"],
+                    "prof_id":    ip,
+                    "es_tecnica": False,
+                    "aula":       nombre_aula,
+                }
+                for offset in range(tam):
+                    horarios[parte][DIAS[d]][b_ini + offset + 1] = entry
+
+    # Técnicas propias
     for parte in partes:
         for id_m in bloques_tec[parte]:
             for var, ip, d, b_ini, tam in bloques_tec[parte][id_m]:
@@ -636,8 +792,6 @@ def resolver_seccion(
     print(f"  Penaliz.   : {penval}")
     print(f"{'=' * 70}")
 
-
-
     return horarios["A"], horarios["B"]
 
 
@@ -696,7 +850,6 @@ def _verificar_contigüidad(horario: dict) -> list[str]:
     return errores
 
 
-
 def verificar_sincronizacion(horA: dict, horB: dict) -> None:
     """Verifica que A y B estén correctamente sincronizados."""
     errores = []
@@ -712,19 +865,43 @@ def verificar_sincronizacion(horA: dict, horB: dict) -> None:
                     f"  [!] {dia} L{b}: A={'TEC' if tA else 'AC/vacío'} "
                     f"B={'TEC' if tB else 'AC/vacío'} — no sincronizado"
                 )
-            if eA and eB and not eA["es_tecnica"] and not eB["es_tecnica"]:
+
+            # Académicas (no EF): deben ser idénticas
+            if (eA and eB and not eA["es_tecnica"] and not eB["es_tecnica"]
+                    and eA["materia"] != "Educación Física"
+                    and eB["materia"] != "Educación Física"):
                 if eA["materia"] != eB["materia"] or eA["profesor"] != eB["profesor"]:
                     errores.append(
                         f"  [!] {dia} L{b}: académica difiere — "
                         f"A={eA['materia']}/{eA['profesor']} "
                         f"B={eB['materia']}/{eB['profesor']}"
                     )
-            if eA and eB and eA["es_tecnica"] and eB["es_tecnica"]:
-                if eA.get("materia") == "Educación Física" or eB.get("materia") == "Educación Física":
-                    if eA["materia"] != eB["materia"] or eA["profesor"] != eB["profesor"]:
-                        errores.append(
-                            f"  [!] {dia} L{b}: Ed. Física difiere entre A y B"
-                        )
+
+            # Ed. Física: mismo slot y aula, distinto profesor
+            if (eA and eB
+                    and eA["materia"] == "Educación Física"
+                    and eB["materia"] == "Educación Física"):
+                if eA["aula"] != eB["aula"]:
+                    errores.append(
+                        f"  [!] {dia} L{b}: Ed. Física aula difiere — "
+                        f"A={eA['aula']} B={eB['aula']}"
+                    )
+                if eA["profesor"] == eB["profesor"]:
+                    errores.append(
+                        f"  [!] {dia} L{b}: Ed. Física mismo profesor en A y B — "
+                        f"{eA['profesor']}"
+                    )
+
+            # Uno tiene EF y el otro no
+            ef_A = eA and eA["materia"] == "Educación Física"
+            ef_B = eB and eB["materia"] == "Educación Física"
+            if ef_A != ef_B:
+                errores.append(
+                    f"  [!] {dia} L{b}: Ed. Física no sincronizada — "
+                    f"A={eA['materia'] if eA else 'vacío'} "
+                    f"B={eB['materia'] if eB else 'vacío'}"
+                )
+
     print()
     if errores:
         print("Errores de sincronización A↔B:")
@@ -732,7 +909,8 @@ def verificar_sincronizacion(horA: dict, horB: dict) -> None:
             print(e)
     else:
         print("  Sincronización A↔B OK:")
-        print("  - Académicas y Ed. Física idénticas en ambos grupos.")
+        print("  - Académicas idénticas en ambos grupos.")
+        print("  - Ed. Física: mismo slot y aula, distinto profesor.")
         print("  - Slots técnicos coinciden en ambos grupos.")
 
 
@@ -771,7 +949,8 @@ def verificar_aulas(
 ) -> None:
     """
     Verifica:
-    - Ningún aula ocupada por dos grupos distintos en el mismo slot.
+    - Ningún aula ocupada por dos grupos distintos en el mismo slot
+      (excepción: Ed. Física comparte aula entre A y B intencionalmente).
     - El tipo de aula es correcto para el tipo de materia.
     """
     errores = []
@@ -788,11 +967,20 @@ def verificar_aulas(
 
     for (dia, b, nombre_aula), ocupantes in uso_aula.items():
         materias = list({m for _, m in ocupantes})
+        partes_ocupantes = [p for p, _ in ocupantes]
+        # Ed. Física comparte aula entre A y B → permitido si misma materia
         if len(materias) > 1:
             errores.append(
                 f"  [!] {dia} L{b}: aula '{nombre_aula}' usada por "
                 f"{ocupantes} — CONFLICTO"
             )
+        elif len(materias) == 1 and materias[0] != "Educación Física":
+            # Misma materia no-EF en mismo aula desde distintas partes → conflicto
+            if len(set(partes_ocupantes)) > 1:
+                errores.append(
+                    f"  [!] {dia} L{b}: aula '{nombre_aula}' usada por "
+                    f"{ocupantes} — CONFLICTO (misma materia, distintas partes)"
+                )
 
     for parte in partes:
         for dia in DIAS:

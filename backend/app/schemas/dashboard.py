@@ -32,3 +32,27 @@ class GradeReportOut(BaseModel):
     final_grade: Decimal | None
     status: str
     submissions: list[SubmissionOut]
+
+class MailOut(BaseModel):
+    id: int
+    subject: str
+    content: str
+    sender_name: str
+    sent_at: datetime.datetime
+    is_read: bool
+    attachments: list[str] = []
+    is_mine: bool
+
+class MailReadUpdate(BaseModel):
+    is_read: bool
+
+class MailCreate(BaseModel):
+    subject: str
+    content: str
+
+    # Opcionales (puedes usar uno o varios)
+    recipient_ids: list[int] = []
+    target_role: str | None = None
+    target_section_id: int | None = None
+
+    attachments: list[str] = []  # URLs o paths

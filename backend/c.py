@@ -18,6 +18,7 @@ Crea:
 import secrets
 import string
 from datetime import time
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -58,21 +59,21 @@ CONFIG_PLANS = [
         "year": 1,
         "courses": [
             ("Tecnologías de Información, Comunicación y Servicios", 6),
-            ("Administración y Soporte a Computadoras",              12),
-            ("Programación",                                         12),
-            ("Inglés Técnico",                                        6),
-            ("Educación Física",                                      2),
+            ("Administración y Soporte a Computadoras", 12),
+            ("Programación", 12),
+            ("Inglés Técnico", 6),
+            ("Educación Física", 2),
         ],
     },
     {
         "name": "Config y Soporte 2",
         "year": 2,
         "courses": [
-            ("Emprendimiento",                          3),
+            ("Emprendimiento", 3),
             ("Administración y Soporte a Computadoras", 4),
-            ("Configuración y Soporte a Redes",         5),
-            ("Inglés Técnico",                          3),
-            ("Educación Física",                        2),
+            ("Configuración y Soporte a Redes", 5),
+            ("Inglés Técnico", 3),
+            ("Educación Física", 2),
         ],
     },
     {
@@ -102,10 +103,6 @@ ACCOUNTING_PLANS = [
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ASIGNACIÓN DE PROFESORES POR MATERIA EN LA SECCIÓN 10-1
-# (course_name, professor_full_name, section_part)
-# section_part=None  → materia académica (ambas partes)
-# section_part="A"   → materia técnica parte A
-# section_part="B"   → materia técnica parte B
 # ══════════════════════════════════════════════════════════════════════════════
 
 SECTION_COURSE_ASSIGNMENTS = [
@@ -142,6 +139,51 @@ SECTION_COURSE_ASSIGNMENTS = [
 def generate_password(length: int = 16) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*()"
     return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def write_passwords_file(credentials: list[dict]):
+    """
+    credentials: lista de dicts con keys: rol, nombre, correo, password
+    """
+    output_path = Path("passwords.txt")
+
+    admins    = [c for c in credentials if c["rol"] == "superadmin"]
+    professors = [c for c in credentials if c["rol"] == "profesor"]
+
+    lines = []
+    lines.append("╔══════════════════════════════════════════════════════════════════════════════╗")
+    lines.append("║                    CREDENCIALES DEL SISTEMA – CTP PAVAS                      ║")
+    lines.append("╠══════════════════════════════════════════════════════════════════════════════╣")
+    lines.append("║     Archivo confidencial. No compartir. Cambiar contraseña tras primer       ║")
+    lines.append("║     inicio de sesión.                                                        ║")
+    lines.append("╚══════════════════════════════════════════════════════════════════════════════╝")
+    lines.append("")
+
+    # ── Superadmin ────────────────────────────────────────────────────────────
+    lines.append("━" * 78)
+    lines.append(" SUPERADMIN")
+    lines.append("━" * 78)
+    lines.append("")
+    for c in admins:
+        lines.append(f"  Nombre    : {c['nombre']}")
+        lines.append(f"  Correo    : {c['correo']}")
+        lines.append(f"  Contraseña: {c['password']}")
+        lines.append("")
+
+    # ── Profesores ────────────────────────────────────────────────────────────
+    lines.append("━" * 78)
+    lines.append(" PROFESORES")
+    lines.append("━" * 78)
+    lines.append("")
+    lines.append(f"  {'Nombre':<18} {'Correo':<38} {'Contraseña'}")
+    lines.append(f"  {'─'*18} {'─'*38} {'─'*16}")
+    for c in professors:
+        lines.append(f"  {c['nombre']:<18} {c['correo']:<38} {c['password']}")
+    lines.append("")
+    lines.append("━" * 78)
+
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"\n  📄 Contraseñas guardadas en: {output_path.resolve()}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -571,7 +613,6 @@ def create_specialty_plans(db: Session, courses: dict, specialty_name: str, plan
         else:
             print(f"  Plan ya existe: {plan.name}")
 
-        # ── FIX: el for y el db.add están correctamente indentados ──────────
         for cname, weekly_lessons in plan_data["courses"]:
             course = courses.get(cname)
             if not course:
@@ -602,7 +643,8 @@ def create_specialty_plans(db: Session, courses: dict, specialty_name: str, plan
 # PROFESORES
 # ══════════════════════════════════════════════════════════════════════════════
 
-def create_professors(db: Session):
+def create_professors(db: Session) -> list[dict]:
+    """Retorna lista de credenciales generadas."""
     print("\n── Profesores ──────────────────────────────────────────")
     role = db.query(Role).filter(Role.name == "profesor").first()
     if not role:
@@ -659,7 +701,7 @@ def create_professors(db: Session):
     }
 
     course_map    = {c.name: c for c in db.query(Course).all()}
-    created_users = []
+    credentials   = []
 
     for name, course_names in base_data.items():
         email = f"{name.lower().replace(' ', '_').replace('.', '')}@portal.com"
@@ -682,7 +724,6 @@ def create_professors(db: Session):
         db.add(UserRole(user_id=user.id, role_id=role.id))
         db.add(ProfessorProfile(user_id=user.id, current_status="disponible"))
 
-        # Disponibilidad total (5 días × 12 lecciones)
         for day in range(5):
             for lesson in range(1, 13):
                 db.add(ProfessorAvailabilitySlot(
@@ -699,24 +740,22 @@ def create_professors(db: Session):
                 print(f"    ⚠ Curso no encontrado para {name}: {cname}")
 
         db.commit()
-        created_users.append((name, email, password))
+        credentials.append({"rol": "profesor", "nombre": name, "correo": email, "password": password})
         print(f"  Profesor creado: {name}")
 
-    if created_users:
-        print("\n  ╔══ CREDENCIALES GENERADAS ══════════════════════════════╗")
-        for name, email, password in created_users:
-            print(f"  ║  {name:<15} {email:<35} {password}")
-        print("  ╚════════════════════════════════════════════════════════╝")
+    return credentials
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUPERADMIN
 # ══════════════════════════════════════════════════════════════════════════════
 
-def create_superadmin_user(db: Session, super_role: Role):
+def create_superadmin_user(db: Session, super_role: Role) -> list[dict]:
+    """Retorna lista de credenciales generadas."""
     print("\n── Usuario superadmin ──────────────────────────────────")
     super_email = "superadmin@portal.com"
     user = db.query(User).filter(User.email == super_email).first()
+    credentials = []
 
     if not user:
         password = generate_password()
@@ -734,8 +773,11 @@ def create_superadmin_user(db: Session, super_role: Role):
         db.commit()
         print(f"  Superadmin creado: {super_email}")
         print(f"  Contraseña:        {password}")
+        credentials.append({"rol": "superadmin", "nombre": "Super Admin", "correo": super_email, "password": password})
     else:
         print(f"  Superadmin ya existe: {super_email}")
+
+    return credentials
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -745,7 +787,6 @@ def create_superadmin_user(db: Session, super_role: Role):
 def create_sections(db: Session):
     print("\n── Sección 10-1 ────────────────────────────────────────")
 
-    # ── Sección base ──────────────────────────────────────────────────────────
     section = db.query(Section).filter(Section.name == "10-1").first()
     if not section:
         guide = db.query(User).filter(User.full_name == "Martha").first()
@@ -761,7 +802,6 @@ def create_sections(db: Session):
     else:
         print("  Sección ya existe: 10-1")
 
-    # ── Especialidades por parte ──────────────────────────────────────────────
     specialty_a = db.query(Specialty).filter(Specialty.name == "Configuración y Soporte").first()
     specialty_b = db.query(Specialty).filter(Specialty.name == "Contabilidad").first()
 
@@ -786,12 +826,8 @@ def create_sections(db: Session):
 
     db.commit()
 
-    # ── Planes de estudio ─────────────────────────────────────────────────────
-    # Plan académico → part=None (compartido A y B)
-    # Plan técnico A → part="A"
-    # Plan técnico B → part="B"
     plan_config = [
-        ("Plan Académico 1",   "A"),  # ← compartido, se inserta dos veces
+        ("Plan Académico 1",   "A"),
         ("Plan Académico 1",   "B"),
         ("Config y Soporte 1", "A"),
         ("Contabilidad 1",     "B"),
@@ -820,7 +856,6 @@ def create_sections(db: Session):
 
     db.commit()
 
-    # ── SectionCourse: profesor por materia ───────────────────────────────────
     course_map    = {c.name: c for c in db.query(Course).all()}
     professor_map = {u.full_name: u for u in db.query(User).all()}
 
@@ -868,8 +903,14 @@ def run_seed(db: Session):
     create_academic_study_plans(db, courses)
     create_specialty_plans(db, courses, "Configuración y Soporte", CONFIG_PLANS)
     create_specialty_plans(db, courses, "Contabilidad", ACCOUNTING_PLANS)
-    create_professors(db)
-    create_superadmin_user(db, roles["superadmin"])
+
+    all_credentials = []
+    all_credentials += create_professors(db)
+    all_credentials += create_superadmin_user(db, roles["superadmin"])
+
+    if all_credentials:
+        write_passwords_file(all_credentials)
+
     create_sections(db)
     print("\n✅ Seed completo.\n")
 
