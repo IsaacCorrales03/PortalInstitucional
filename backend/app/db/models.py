@@ -846,7 +846,7 @@ class PollingStation(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("process_id", "name", name="uq_station_per_process"),
+        UniqueConstraint("process_id", "number", name="uq_station_per_process"),
     )
 
 class PoliticalParty(Base):
