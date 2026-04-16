@@ -1,15 +1,35 @@
-from warnings import deprecated
-
 from sqlalchemy import (
     CheckConstraint, Index, String, Integer, ForeignKey, Date, Boolean,
-    Time, DateTime, Numeric, Text, UniqueConstraint, func
+    Time, DateTime, Numeric, Text, UniqueConstraint, func, Enum
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-import datetime
-from decimal import Decimal
+from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
-from sqlalchemy import Enum
+from decimal import Decimal
 import enum as pyenum
+import datetime
+
+class PoliticalPartyStatus(str, pyenum.Enum):
+    BORRADOR    = "borrador"
+    ENVIADO     = "enviado"
+    EN_REVISION = "en_revision"
+    APROBADO    = "aprobado"
+    RECHAZADO   = "rechazado"
+
+class PoliticalPartyMemberRole(str, pyenum.Enum):
+    PRESIDENCIA     = "presidencia"
+    VICEPRESIDENCIA = "vicepresidencia"
+    SECRETARIA      = "secretaria"
+    TESORERIA       = "tesoreria"
+    FISCALIA        = "fiscalia"
+    VOCALIA_1       = "vocalia_1"
+    VOCALIA_2       = "vocalia_2"
+
+class PollingMemberRole(str, pyenum.Enum):
+    MIEMBRO_PROPIETARIO = "miembro_propietario"
+    MIEMBRO_SUPLENTE    = "miembro_suplente"
+    FISCAL_PROPIETARIO  = "fiscal_propietario"
+    FISCAL_SUPLENTE     = "fiscal_suplente"
+
 class ProfessorStatus(str, pyenum.Enum):
     DISPONIBLE   = "disponible"
     EN_REUNION   = "en_reunion"
@@ -778,30 +798,178 @@ class MailAttachment(Base):
 
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_url: Mapped[str] = mapped_column(String(500), nullable=False)
+
+
+
+
+
 # =========================
 # VOTATION SYSTEM
 # =========================
-class Election(Base):
+class ElectoralProcess(Base):
     """
-    status: 'pendiente' | 'abierta' | 'cerrada'
+    Un solo proceso electoral.
+    La presidencia y vicepresidencia del TEE manejan el proceso.
+
+    registration_status:
+        'cerrado' -> los estudiantes no pueden crear partidos políticos.
+        'abierto' -> la inscripción de partidos políticos está abierta.
     """
-    __tablename__ = "election"
+
+    __tablename__ = "electoral_processes"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    #name: Mapped[str] = mapped_column(String(255), nullable=False)
-    year: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[int] = mapped_column(String(30), default="pendiente")
+    academic_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    registration_status: Mapped[str] = mapped_column(String(20), default="cerrado")
+
+    # Metadata
+    opened_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    opened_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    closed_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    closed_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.now(datetime.timezone.utc)
     )
-    closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=False)
 
+class PollingStation(Base):
+    """
+    Una de todas las mesas electorales de un proceso electoral.
+    Definida por proceso, no globalmente.
+    """
+
+    __tablename__ = "polling_stations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    process_id: Mapped[int] = mapped_column(ForeignKey("electoral_processes.id"), nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    location: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("process_id", "name", name="uq_station_per_process"),
+    )
+
+class PoliticalParty(Base):
+    """
+    Registro de un partido político.
+    Flujo de estado: borrador -> enviado -> en_revision -> aprobado | rechazado.
+
+    Partidos en 'rechazado' pueden editar y reenviar (el estado se reinicia a borrador
+    por cada edición, luego a 'enviado' en cada reenvío).
+    """
+
+    __tablename__ = "political_parties"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    process_id: Mapped[int] = mapped_column(ForeignKey("electoral_processes.id"), nullable=False)
+
+    # Identidad
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    initials: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    initials_meaning: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    colors: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    colors_meaning: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    flag_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    mascot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    advisory_teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    # Ciclo de vida
+    status: Mapped[PoliticalPartyStatus] = mapped_column(
+        Enum(PoliticalPartyStatus), default=PoliticalPartyStatus.BORRADOR, nullable=False
+    )
+    submitted_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    reviewed_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    reviewed_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    seb_feedback: Mapped[str | None] = mapped_column(String(500), nullable=True)
+ 
+    # Metadata
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.timezone.utc)
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.timezone.utc),
+        onupdate=datetime.datetime.now(datetime.timezone.utc)
+    )
+
+class PoliticalPartyMember(Base):
+    """
+    Los 7 roles oficiales en un partido político.
+    Cada estudiante puede estar en un solo partido político (obligado por
+    la restricción única en student_id + process_id)
+
+    La alternabilidad de género será evaluada en la capa de aplicación, no en
+    la DB.
+    """
+
+    __tablename__ = "political_party_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    party_id: Mapped[int] = mapped_column(ForeignKey("political_parties.id"), nullable=False)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    role: Mapped[PoliticalPartyMemberRole] = mapped_column(Enum(PoliticalPartyMemberRole), nullable=False)
+
+    __table_args__ = (
+        # Un rol por partido.
+        UniqueConstraint("party_id", "role", name="uq_one_role_per_party"),
+        # Un partido por estudiante por proceso, restringido por la capa de aplicación.
+        # Usamos una restricción directa aquí, pidiendo solo unicidad en student_id +
+        # party_id porque ya party_id es único proceso.
+        UniqueConstraint("party_id", "student_id", name="uq_one_student_per_party"),
+    )
+
+class PollingStationMember(Base):
+    """
+    Por mesa electoral, cada partido registra:
+    - 1 miembro de mesa propietario.
+    - 1 fiscal propietario.
+
+    Todos deben ser estudiantes existentes y no pueden ser miembros del partido.
+    """
+
+    __tablename__ = "polling_station_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    party_id: Mapped[int] = mapped_column(ForeignKey("political_parties.id"), nullable=False)
+    station_id: Mapped[int] = mapped_column(ForeignKey("polling_stations.id"), nullable=False)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    role: Mapped[PollingMemberRole] = mapped_column(Enum(PollingMemberRole), nullable=False)
+
+    __table_args__ = (
+        # Un estudiante por rol por mesa electoral por partido.
+        UniqueConstraint("party_id", "station_id", "role", name="uq_role_per_station_per_party"),
+    )
+
+class GovernmentPlan(Base):
+    """
+    Un plan de gobierno por partido político.
+    Se crea automáticamente cuando un partido es creado (vacío).
+    Se actualiza iterativamente hasta el envío.
+    """
+
+    __tablename__ = "government_plans"
+ 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    party_id: Mapped[int] = mapped_column(ForeignKey("political_parties.id"), unique=True, nullable=False)
+    objectives: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    contributors: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    values: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    activities: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    timeline: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    goal: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+ 
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.timezone.utc),
+        onupdate=datetime.datetime.now(datetime.timezone.utc)
+    )
+
+"""
 # Plan de gobierno: tiene gobierno al que pertenece
 # id_plan
 # propuestasPlan: relaciona el id, plan de gobierno, con una propuesta
 # propuesta: Objetivo, tiempo de realización, prioridad, descripción
 class ElectionParty(Base):
-    """Lista/partido que participa en una elección."""
+    ""Lista/partido que participa en una elección.""
 
     __tablename__ = "election_parties"
 
@@ -812,13 +980,14 @@ class ElectionParty(Base):
     candidate_name: Mapped[str] = mapped_column(String(255), nullable=False)
     photo_url: Mapped[str] = mapped_column(String(500), nullable=False)
 
+
 class ElectionVote(Base):
-    """
+    ""
     Un voto por estudiante por elección.
     - user_id es único por election_id.
     - Nunca se elimina un voto. is_valid=False para votos nulos.
     - No exponer la unión usuario<->partido en endpoints públicos/admin de resultados.
-    """
+    ""
 
     __tablename__ = "election_votes"
 
@@ -834,3 +1003,4 @@ class ElectionVote(Base):
     __table_args__ = (
         UniqueConstraint("election_id", "user_id", name="uq_one_vote_per_student"),
     )
+"""
