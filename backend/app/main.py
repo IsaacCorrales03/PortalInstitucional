@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 
-from app.api.routes import admin, auth, specialities, dashboard, scholarship
+from app.api.routes import admin, auth, specialities, dashboard, scholarship, votacion, partidos, electoral
 from app.db.session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login-form")
@@ -38,7 +38,9 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(specialities.router)
 app.include_router(dashboard.router)
-
+app.include_router(votacion.router)
+app.include_router(partidos.router)
+app.include_router(electoral.router)
 # =========================
 # Middleware CORS
 # =========================

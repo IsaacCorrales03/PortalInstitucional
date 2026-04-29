@@ -8,28 +8,6 @@ from decimal import Decimal
 import enum as pyenum
 import datetime
 
-class PoliticalPartyStatus(str, pyenum.Enum):
-    BORRADOR    = "borrador"
-    ENVIADO     = "enviado"
-    EN_REVISION = "en_revision"
-    APROBADO    = "aprobado"
-    RECHAZADO   = "rechazado"
-
-class PoliticalPartyMemberRole(str, pyenum.Enum):
-    PRESIDENCIA     = "presidencia"
-    VICEPRESIDENCIA = "vicepresidencia"
-    SECRETARIA      = "secretaria"
-    TESORERIA       = "tesoreria"
-    FISCALIA        = "fiscalia"
-    VOCALIA_1       = "vocalia_1"
-    VOCALIA_2       = "vocalia_2"
-
-class PollingMemberRole(str, pyenum.Enum):
-    MIEMBRO_PROPIETARIO = "miembro_propietario"
-    MIEMBRO_SUPLENTE    = "miembro_suplente"
-    FISCAL_PROPIETARIO  = "fiscal_propietario"
-    FISCAL_SUPLENTE     = "fiscal_suplente"
-
 class ProfessorStatus(str, pyenum.Enum):
     DISPONIBLE   = "disponible"
     EN_REUNION   = "en_reunion"
@@ -56,8 +34,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     national_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    birth_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    birth_date: Mapped[datetime.date] = mapped_column(Date, nullable=True)
+    phone: Mapped[str] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow
@@ -145,27 +123,27 @@ class Applicant(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     national_id: Mapped[str] = mapped_column(String(50), nullable=False)
-    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    birth_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str] = mapped_column(String(20), nullable=True)
+    birth_date: Mapped[datetime.date] = mapped_column(Date, nullable=True)
 
     primary_specialty_id: Mapped[int] = mapped_column(
         ForeignKey("specialties.id"), nullable=False
     )
-    secondary_specialty_id: Mapped[int | None] = mapped_column(
+    secondary_specialty_id: Mapped[int] = mapped_column(
         ForeignKey("specialties.id"), nullable=True
     )
-    assigned_specialty_id: Mapped[int | None] = mapped_column(
+    assigned_specialty_id: Mapped[int] = mapped_column(
         ForeignKey("specialties.id"), nullable=True
     )
 
     status: Mapped[str] = mapped_column(String(30), default="pendiente")
-    final_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    final_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=True)
     applied_at: Mapped[datetime.date] = mapped_column(Date, default=datetime.date.today)
-    reviewed_by: Mapped[int | None] = mapped_column(
+    reviewed_by: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
 
 
 class ApplicantDocument(Base):
@@ -180,12 +158,12 @@ class ApplicantDocument(Base):
         ForeignKey("applicants.id"), nullable=False
     )
     document_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=True)
     review_status: Mapped[str] = mapped_column(String(30), default="pendiente")
-    reviewed_by: Mapped[int | None] = mapped_column(
+    reviewed_by: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
-    reviewed_at: Mapped[datetime.datetime | None] = mapped_column(
+    reviewed_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, nullable=True
     )
 
@@ -202,9 +180,9 @@ class ApplicantInterview(Base):
         ForeignKey("users.id"), nullable=False
     )
     scheduled_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
-    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
 
 
 class ApplicantTest(Base):
@@ -215,12 +193,12 @@ class ApplicantTest(Base):
     applicant_id: Mapped[int] = mapped_column(
         ForeignKey("applicants.id"), nullable=False
     )
-    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
-    taken_at: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    administered_by: Mapped[int | None] = mapped_column(
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=True)
+    taken_at: Mapped[datetime.date] = mapped_column(Date, nullable=True)
+    administered_by: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
 
 
 # =========================
@@ -247,8 +225,8 @@ class StudentProfile(Base):
     )
     section_shift: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="activo")
-    enrolled_since: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    converted_from_applicant_id: Mapped[int | None] = mapped_column(
+    enrolled_since: Mapped[datetime.date] = mapped_column(Date, nullable=True)
+    converted_from_applicant_id: Mapped[int] = mapped_column(
         ForeignKey("applicants.id"), nullable=True
     )
 
@@ -268,11 +246,11 @@ class Scholarship(Base):
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="activa")
     start_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    granted_by: Mapped[int | None] = mapped_column(
+    end_date: Mapped[datetime.date] = mapped_column(Date, nullable=True)
+    granted_by: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
 
 
 # =========================
@@ -284,14 +262,14 @@ class ProfessorProfile(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"), primary_key=True
     )
-    specialty_id: Mapped[int | None] = mapped_column(
+    specialty_id: Mapped[int] = mapped_column(
         ForeignKey("specialties.id"), nullable=True
     )
     current_status: Mapped[ProfessorStatus] = mapped_column(
         Enum(ProfessorStatus), default=ProfessorStatus.DISPONIBLE, nullable=False
     )
-    status_note: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status_updated_at: Mapped[datetime.datetime | None] = mapped_column(
+    status_note: Mapped[str] = mapped_column(String(255), nullable=True)
+    status_updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, nullable=True
     )
 
@@ -464,7 +442,7 @@ class Classroom(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     type: Mapped[ClassroomType] = mapped_column(Enum(ClassroomType), nullable=False)
-    capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    capacity: Mapped[int] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
@@ -806,27 +784,59 @@ class MailAttachment(Base):
 # =========================
 # VOTATION SYSTEM
 # =========================
+
+# ─── Enums ────────────────────────────────────────────────────────────────────
+
+class PoliticalPartyStatus(str, pyenum.Enum):
+    BORRADOR    = "borrador"
+    ENVIADO     = "enviado"
+    EN_REVISION = "en_revision"
+    APROBADO    = "aprobado"
+    RECHAZADO   = "rechazado"
+
+
+class PoliticalPartyMemberRole(str, pyenum.Enum):
+    PRESIDENCIA     = "presidencia"
+    VICEPRESIDENCIA = "vicepresidencia"
+    SECRETARIA      = "secretaria"
+    TESORERIA       = "tesoreria"
+    FISCALIA        = "fiscalia"
+    VOCALIA_1       = "vocalia_1"
+    VOCALIA_2       = "vocalia_2"
+
+
+class PollingMemberRole(str, pyenum.Enum):
+    MIEMBRO_PROPIETARIO = "miembro_propietario"
+    MIEMBRO_SUPLENTE    = "miembro_suplente"
+    FISCAL_PROPIETARIO  = "fiscal_propietario"
+    FISCAL_SUPLENTE     = "fiscal_suplente"
+
+
+# ─── Modelos ──────────────────────────────────────────────────────────────────
+
 class ElectoralProcess(Base):
     """
-    Un solo proceso electoral.
-    La presidencia y vicepresidencia del TEE manejan el proceso.
+    Proceso electoral. Se crea ya abierto (opened_by/opened_at se llenan
+    al crear). closed_by/closed_at se rellenan al cerrar el proceso.
 
     registration_status:
-        'cerrado' -> los estudiantes no pueden crear partidos políticos.
-        'abierto' -> la inscripción de partidos políticos está abierta.
+        'cerrado' → estudiantes no pueden crear partidos.
+        'abierto' → inscripción de partidos habilitada.
     """
-
     __tablename__ = "electoral_processes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     academic_year: Mapped[int] = mapped_column(Integer, nullable=False)
     registration_status: Mapped[str] = mapped_column(String(20), default="cerrado")
 
-    # Metadata
+    # Quién y cuándo abrió — se rellena al crear (proceso nace abierto)
     opened_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     opened_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
-    closed_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    closed_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+
+    # Quién y cuándo cerró — nullable hasta que se cierre
+    closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.now(datetime.timezone.utc)
@@ -834,14 +844,15 @@ class ElectoralProcess(Base):
 
 class PollingStation(Base):
     """
-    Una de todas las mesas electorales de un proceso electoral.
-    Definida por proceso, no globalmente.
+    Mesa electoral dentro de un proceso.
+    number es único por proceso (no globalmente).
     """
-
     __tablename__ = "polling_stations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    process_id: Mapped[int] = mapped_column(ForeignKey("electoral_processes.id"), nullable=False)
+    process_id: Mapped[int] = mapped_column(
+        ForeignKey("electoral_processes.id"), nullable=False
+    )
     number: Mapped[int] = mapped_column(Integer, nullable=False)
     location: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -851,17 +862,16 @@ class PollingStation(Base):
 
 class PoliticalParty(Base):
     """
-    Registro de un partido político.
-    Flujo de estado: borrador -> enviado -> en_revision -> aprobado | rechazado.
-
-    Partidos en 'rechazado' pueden editar y reenviar (el estado se reinicia a borrador
-    por cada edición, luego a 'enviado' en cada reenvío).
+    Partido político dentro de un proceso electoral.
+    Flujo: borrador → enviado → en_revision → aprobado | rechazado.
+    Los rechazados pueden editar y reenviar (estado vuelve a borrador).
     """
-
     __tablename__ = "political_parties"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    process_id: Mapped[int] = mapped_column(ForeignKey("electoral_processes.id"), nullable=False)
+    process_id: Mapped[int] = mapped_column(
+        ForeignKey("electoral_processes.id"), nullable=False
+    )
 
     # Identidad
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -873,60 +883,53 @@ class PoliticalParty(Base):
     mascot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     advisory_teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    # Ciclo de vida
+    # Ciclo de vida — nullable hasta que ocurran los eventos
     status: Mapped[PoliticalPartyStatus] = mapped_column(
-        Enum(PoliticalPartyStatus), default=PoliticalPartyStatus.BORRADOR, nullable=False
+        Enum(PoliticalPartyStatus),
+        default=PoliticalPartyStatus.BORRADOR,
+        nullable=False,
     )
-    submitted_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
-    reviewed_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    reviewed_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    submitted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    reviewed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     seb_feedback: Mapped[str | None] = mapped_column(String(500), nullable=True)
- 
+
     # Metadata
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.now(datetime.timezone.utc)
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now(datetime.timezone.utc),
-        onupdate=datetime.datetime.now(datetime.timezone.utc)
+        DateTime,
+        default=datetime.datetime.now(datetime.timezone.utc),
+        onupdate=datetime.datetime.now(datetime.timezone.utc),
     )
 
 class PoliticalPartyMember(Base):
     """
-    Los 7 roles oficiales en un partido político.
-    Cada estudiante puede estar en un solo partido político (obligado por
-    la restricción única en student_id + process_id)
-
-    La alternabilidad de género será evaluada en la capa de aplicación, no en
-    la DB.
+    7 roles oficiales por partido.
+    Un estudiante solo puede pertenecer a un partido por proceso
+    (unicidad party_id + student_id, y party_id ya es único por proceso).
     """
-
     __tablename__ = "political_party_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     party_id: Mapped[int] = mapped_column(ForeignKey("political_parties.id"), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    role: Mapped[PoliticalPartyMemberRole] = mapped_column(Enum(PoliticalPartyMemberRole), nullable=False)
+    role: Mapped[PoliticalPartyMemberRole] = mapped_column(
+        Enum(PoliticalPartyMemberRole), nullable=False
+    )
 
     __table_args__ = (
-        # Un rol por partido.
-        UniqueConstraint("party_id", "role", name="uq_one_role_per_party"),
-        # Un partido por estudiante por proceso, restringido por la capa de aplicación.
-        # Usamos una restricción directa aquí, pidiendo solo unicidad en student_id +
-        # party_id porque ya party_id es único proceso.
+        UniqueConstraint("party_id", "role",       name="uq_one_role_per_party"),
         UniqueConstraint("party_id", "student_id", name="uq_one_student_per_party"),
     )
 
 class PollingStationMember(Base):
     """
-    Por mesa electoral, cada partido registra:
-    - 1 miembro de mesa propietario.
-    - 1 fiscal propietario.
-
-    Todos deben ser estudiantes existentes y no pueden ser miembros del partido.
+    Miembros y fiscales de mesa por partido.
+    No pueden ser miembros del partido (validar en capa de aplicación).
     """
-
     __tablename__ = "polling_station_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -936,71 +939,92 @@ class PollingStationMember(Base):
     role: Mapped[PollingMemberRole] = mapped_column(Enum(PollingMemberRole), nullable=False)
 
     __table_args__ = (
-        # Un estudiante por rol por mesa electoral por partido.
-        UniqueConstraint("party_id", "station_id", "role", name="uq_role_per_station_per_party"),
+        UniqueConstraint(
+            "party_id", "station_id", "role",
+            name="uq_role_per_station_per_party",
+        ),
     )
+
 
 class GovernmentPlan(Base):
     """
-    Un plan de gobierno por partido político.
-    Se crea automáticamente cuando un partido es creado (vacío).
+    Plan de gobierno — uno por partido, creado vacío al crear el partido.
     Se actualiza iterativamente hasta el envío.
     """
-
     __tablename__ = "government_plans"
- 
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    party_id: Mapped[int] = mapped_column(ForeignKey("political_parties.id"), unique=True, nullable=False)
+    party_id: Mapped[int] = mapped_column(
+        ForeignKey("political_parties.id"), unique=True, nullable=False
+    )
     objectives: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     contributors: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     values: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     activities: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     timeline: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     goal: Mapped[str | None] = mapped_column(String(1024), nullable=True)
- 
+
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now(datetime.timezone.utc),
-        onupdate=datetime.datetime.now(datetime.timezone.utc)
+        DateTime,
+        default=datetime.datetime.now(datetime.timezone.utc),
+        onupdate=datetime.datetime.now(datetime.timezone.utc),
     )
 
-"""
-# Plan de gobierno: tiene gobierno al que pertenece
-# id_plan
-# propuestasPlan: relaciona el id, plan de gobierno, con una propuesta
-# propuesta: Objetivo, tiempo de realización, prioridad, descripción
-class ElectionParty(Base):
-    ""Lista/partido que participa en una elección.""
 
-    __tablename__ = "election_parties"
+class PartyVotesCounter(Base):
+    """
+    Contador de votos por partido. Se incrementa atómicamente al votar
+    y es el único lugar donde se registra la preferencia — sin vincularla
+    a ningún usuario.
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    election_id: Mapped[int] = mapped_column(ForeignKey("election.id"), nullable=False)
-    name: Mapped[str] = mapped_column(String(50), nullable=False)
-    #description: Mapped[str] = mapped_column(String(255), nullable=False)
-    candidate_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    photo_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    El decremento ante anulación es responsabilidad de la capa de aplicación
+    (solo si is_valid era True en el momento de anular).
+    """
+    __tablename__ = "party_votes_counters"
 
-
+    party_id: Mapped[int] = mapped_column(
+        ForeignKey("political_parties.id"),
+        primary_key=True,
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
 class ElectionVote(Base):
-    ""
-    Un voto por estudiante por elección.
-    - user_id es único por election_id.
-    - Nunca se elimina un voto. is_valid=False para votos nulos.
-    - No exponer la unión usuario<->partido en endpoints públicos/admin de resultados.
-    ""
+    """
+    Registro de participación — prueba de que el estudiante ya ejerció su voto.
+    NO almacena a qué partido votó. El conteo va en PartyVotesCounter.
 
+    REGLAS:
+      - user_id único por process_id (un voto por estudiante por elección).
+      - Nunca se elimina. is_valid=False para votos anulados.
+      - La anulación solo registra quién la ejecutó y por qué,
+        pero jamás revela el partido seleccionado.
+    """
     __tablename__ = "election_votes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    election_id: Mapped[int] = mapped_column(ForeignKey("election.id"), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    party_id: Mapped[int] = mapped_column(ForeignKey("election_parties.id"), nullable=False)
-    is_valid: Mapped[int] = mapped_column(Boolean, default=True)
-    revoked_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    process_id: Mapped[int] = mapped_column(
+        ForeignKey("electoral_processes.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+
+    # party_id eliminado intencionalmente — este registro no debe
+    # revelar la preferencia del votante.
+
+    is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
+    revoked_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
     revoked_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    voted_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    voted_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.timezone.utc)
+    )
 
     __table_args__ = (
-        UniqueConstraint("election_id", "user_id", name="uq_one_vote_per_student"),
+        UniqueConstraint("process_id", "user_id", name="uq_one_vote_per_student"),
     )
-"""
+
+

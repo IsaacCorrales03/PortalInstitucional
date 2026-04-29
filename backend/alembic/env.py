@@ -15,7 +15,7 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL) # type: ignore
 # Importar metadata
 from app.db.base import Base
 from app.db.models import *
-
+from app.db.models import PartyVotesCounter  # ← este
 
 target_metadata = Base.metadata
 from sqlalchemy import create_engine
@@ -38,3 +38,4 @@ if context.is_offline_mode():
     raise Exception("Modo offline no soportado en esta configuración")
 else:
     run_migrations_online()
+print(Base.metadata.tables.keys())

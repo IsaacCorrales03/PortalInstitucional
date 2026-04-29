@@ -122,3 +122,28 @@ export const sendCorreo = (data) =>
     method: "POST",
     body: JSON.stringify(data),
   });
+
+// ── ELECTORAL ────────────────────────────────────────────────────────────────
+
+// Procesos electorales
+export const getProcesos      = ()                    => apiFetch("/electoral/procesos");
+export const getProceso       = (id)                  => apiFetch(`/electoral/procesos/${id}`);
+export const crearProceso     = (data)                => apiFetch("/electoral/procesos", { method: "POST", body: JSON.stringify(data) });
+export const cerrarProceso    = (id, closedBy)        => apiFetch(`/electoral/procesos/${id}/cerrar?closed_by=${closedBy}`, { method: "PUT" });
+export const toggleInscripcion = (id, estado)         => apiFetch(`/electoral/procesos/${id}/inscripcion?estado=${estado}`, { method: "PUT" });
+
+// Partidos (solo aprobados — para el votante)
+export const getPartidos        = (params = {}) => {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+  return apiFetch(`/electoral/partidos${qs ? `?${qs}` : ""}`);
+};
+export const getPartido         = (id)          => apiFetch(`/electoral/partidos/${id}`);
+export const crearPartido       = (data)        => apiFetch("/electoral/partidos", { method: "POST", body: JSON.stringify(data) });
+export const editarPartido      = (id, data)    => apiFetch(`/electoral/partidos/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const enviarPartido      = (id)          => apiFetch(`/electoral/partidos/${id}/enviar`, { method: "PUT" });
+export const marcarEnRevision   = (id)          => apiFetch(`/electoral/partidos/${id}/revisar`, { method: "PUT" });
+export const resolverRevision   = (id, data)    => apiFetch(`/electoral/partidos/${id}/resolver`, { method: "PUT", body: JSON.stringify(data) });
+export const eliminarPartido    = (id)          => apiFetch(`/electoral/partidos/${id}`, { method: "DELETE" });
+ 
+// Votos — llamado internamente por el servidor Socket.IO, pero por si lo necesitas desde el frontend
+export const getConteoVotos   = (processId)           => apiFetch(`/electoral/votos/conteo?process_id=${processId}`);
